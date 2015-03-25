@@ -1,0 +1,30 @@
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix foaf:    <http://xmlns.com/foaf/0.1/> .
+@prefix cpack:   <http://cliopatria.swi-prolog.org/schema/cpack#> .
+
+# This file is a Turtle-format RDF file that describes the package.  It
+# *must* be located in rdf/cpack/jquery.ttl
+#
+# Author is a FOAF Person. If you have a FOAF profile, you can link to
+# this.  Otherwise you can specify the information inline as done below.
+# See http://xmlns.com/foaf/spec/ for defines fields.
+
+<> a cpack:Library ;
+	cpack:packageName "dacura" ;
+	dcterms:title "Dacura RDF triple-store interface." ;
+	cpack:author [ a foaf:Person ;
+		       foaf:name "Jan Wielemaker" ;
+		       foaf:mbox <mailto:J.Wielemaker@cs.vu.nl> ;
+		     ] ;
+	cpack:primaryRepository
+	    [ a cpack:GitRepository ;
+	      cpack:gitURL <git://eculture.cs.vu.nl/home/janw/git/ClioPatria/jquery.git>
+	    ] ;
+	cpack:description
+
+"""The jQuery package provides the jQuery files as well as library(jquery),
+   which deals with dependency handling between jQuery resources and will
+   also contain utilities to simplify jQuery interaction.
+""" .
