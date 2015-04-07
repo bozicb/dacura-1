@@ -3,3 +3,4 @@
 /** <module> Dacura REST RDF API
 */
 
+:- use_module(applications(dacura)).
