@@ -1,12 +1,13 @@
 
-%% :- module(schemaRules,[demoDB/0, demoDB/1, demoDB/2, demoDB/3, 
-%% 		       populateDB/1, 
-%% 		       checkDB/1, 
-%% 		       loadAndCheckDB/3, 
-%% 		       test/1,
-%% 		       tests/0]).
+:- module(schemaRules,[demoDB/0, demoDB/1, demoDB/2, demoDB/3, 
+		       populateDB/1, 
+		       checkDB/1, 
+		       loadAndCheckDB/3, 
+		       test/1,
+		       tests/0]).
 
-:- use_module(library(semweb/rdf_db)).
+:- use_module(library(semweb/rdf_db), except([rdf/4])).
+:- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 
 %% setup namespaces related to rdf, rdfs and owl 
@@ -32,7 +33,8 @@ uniqueClass(Y) :- class(Y), bagof(X, class(X), L), count(Y,L,1).
 
 notUniqueClass(Y) :- class(Y), bagof(X, class(X), L), \+ count(Y,L,1).
 
-duplicateClasses(L) :- setof(Y,notUniqueClass(Y), L).
+duplicateClasses(L) :- setof(json([error=notUniqueClass, 
+				   class=Y]), notUniqueClass(Y), L).
 
 % subclasses 
 
@@ -45,7 +47,9 @@ subClassOfClass(X,Y) :- subClassOf(X,Y), class(Y).
 
 notSubClassOfClass(X,Y) :- subClassOf(X,Y), \+ class(Y).
 
-orphanSubClasses(L) :- setof(notSubClassOfClass(X,Y), notSubClassOfClass(X,Y),L).
+orphanSubClasses(L) :- setof(json([error=notSubClassOfClass, 
+				   child=X, 
+				   parent=Y]), notSubClassOfClass(X,Y),L).
 
 % subclass cycles
 classCycleHelp(C,S,[]) :- get_assoc(C,S,true), !.
@@ -54,7 +58,9 @@ classCycleHelp(C,S,[K|P]) :- class(C), subClass(K, C),
 
 classCycle(C,P) :- empty_assoc(S), classCycleHelp(C,S,P). 
 
-classCycles(L) :- setof(classCycle(CC,P), classCycle(CC,P), L).
+classCycles(L) :- setof(json([error=classCycle, 
+			      class=CC,
+			      path=P]), classCycle(CC,P), L).
 
 % properties.
 :- rdf_meta property(r).
@@ -67,7 +73,8 @@ uniqueProperty(P) :- property(P), bagof(P2, property(P2), L), count(P,L,1).
 
 notUniqueProperty(P) :- property(P), bagof(P2, property(P2), L), \+ count(P,L,1).
 
-duplicateProperties(L) :- setof(P,notUniqueProperty(P), L).
+duplicateProperties(L) :- setof(json([error=notUniqueProperty, 
+				      property=P]), notUniqueProperty(P), L).
 
 % subProperties.
 
@@ -80,7 +87,9 @@ subPropertyOfProperty(X,Y) :- subPropertyOf(X,Y), property(Y).
 
 notSubPropertyOfProperty(X,Y) :- subPropertyOf(X,Y), \+ property(Y).
 
-orphanSubProperties(L) :- setof(notSubPropertyOfProperty(X,Y),notSubPropertyOfProperty(X,Y),L).
+orphanSubProperties(L) :- setof(json([error=notSubPropertyOfProperty, 
+				      child=X,
+				      parent=Y]), notSubPropertyOfProperty(X,Y),L).
 
 % subProperty cycles 
 
@@ -89,7 +98,9 @@ propertyCycleHelp(P,S,[Q|T]) :- property(P), subProperty(Q, P), put_assoc(P, S, 
 
 propertyCycle(P,PC) :- empty_assoc(S), propertyCycleHelp(P,S,PC). 
 
-propertyCycles(L) :- setof(propertyCycle(P,PC), propertyCycle(P,PC),L).
+propertyCycles(L) :- setof(json([error=propertyCycle, 
+				 property=P,
+				 path=PC]), propertyCycle(P,PC),L).
 
 %%%% Core types	
 %% xsd:string	Character strings (but not all Unicode character strings)
@@ -197,9 +208,13 @@ notUniqueValidRange(P,R) :- range(P,R), findall(R2, validRange(P,R2), L), \+ len
 notUniqueValidDomain(P,D) :- domain(P,D), findall(D2, validDomain(P,D2), L), \+ length(L,1).
 
 % does this do too much? 
-invalidRange(L) :- setof(range(Y, R), notUniqueValidRange(Y,R), L).
+invalidRange(L) :- setof(json([error=notUniqueValidRange, 
+			       property=Y,
+			       range=R]), notUniqueValidRange(Y,R), L).
 
-invalidDomain(L) :- setof(domain(Y, D), notUniqueValidDomain(Y,D), L).
+invalidDomain(L) :- setof(json([error=notUniqueValidDomain, 
+				property=Y, 
+				domain=D]), notUniqueValidDomain(Y,D), L).
 
 % type checking of domain and ranges. 
 
@@ -223,7 +238,9 @@ orphanInstance(X,C) :- instanceClass(X,C), \+ class(C).
 
 noOrphans :- \+ orphanInstance(_,_).
 
-orphanInstances(L) :- setof(orphanInstance(X,C),orphanInstance(X,C), L).
+orphanInstances(L) :- setof(json([error=orphanInstance,
+				  instance=X, 
+				  class=C]),orphanInstance(X,C), L).
 
 instanceProperty(X,P) :- instance(X), rdf(X, P, _), \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type'. 
 
@@ -231,17 +248,23 @@ instanceHasPropertyClass(X,P) :- instanceProperty(X,P), property(P).
 
 noInstancePropertyClass(X,P) :- instanceProperty(X,P), \+ property(P).
 
-orphanProperties(L) :- setof(noInstancePropertyClass(X,Y), noInstancePropertyClass(X,Y), L). 
+orphanProperties(L) :- setof(json([error=noInstancePropertyClass,
+				   instance=X,
+				   property=Y]), noInstancePropertyClass(X,Y), L). 
 
 %%%%%%%%%%%%%%%%%%%%%%%
 %% Instance Type Checking constraints 
 
 invalidInstanceRange(X, P, R, V) :- 
     rdf(X,P,V, instance), nl, write(X), instanceProperty(X,P), nl, write(P), range(P, R), nl, 
-    write(R), \+ typeCheckRange(R,V).
+    \+ typeCheckRange(R,V).
 
 
-invalidInstanceRanges(L) :- setof(invalidInstanceRange(X,P,R,V), invalidInstanceRange(X,P,R,V), L).
+invalidInstanceRanges(L) :- setof(json([error=invalidInstanceRange,
+					instance=X, 
+					property=P, 
+					range=R, 
+					value=V]), invalidInstanceRange(X,P,R,V), L).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Blank nodes
@@ -250,7 +273,8 @@ blankNode(X) :- rdf(X,_,_), rdf_is_bnode(X).
 blankNode(Y) :- rdf(_,Y,_), rdf_is_bnode(Y).
 blankNode(Z) :- rdf(_,_,Z), rdf_is_bnode(Z).
 
-blankNodes(L) :- setof(X, blankNode(X), L). 
+blankNodes(L) :- setof(json([error=blankNode,
+			     blank=X]), blankNode(X), L). 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Labels 
@@ -260,7 +284,12 @@ classHasNoLabel(X) :- class(X), \+ rdf(X, rdfs:label, _, schema).
 
 classHasOneLabel(X) :- classHasLabel(X,Label), bagof(label(Y,Label2), classHasLabel(Y,Label2), L), count(label(X,Label),L,1).
 
-duplicateLabelClasses(X) :- classHasLabel(X,Label), bagof(label(Y,Label2), classHasLabel(Y,Label2), L), \+ count(label(X,Label),L,1).
+duplicateLabelClasses(X) :- 
+    classHasLabel(X,Label), 
+    bagof(json([error=duplicateLabelClass, 
+		class=Y, 
+		label=Label2]), classHasLabel(Y,Label2), L), 
+    \+ count(label(X,Label),L,1).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -417,18 +446,17 @@ testMessage(schemaRules:invalidDomain, 'Property with non-unique or invalid doma
 testMessage(schemaRules:invalidInstanceRange, 'Instance data has incorrect type: ') :- !. 
 testMessage(_,'Unknown test').
 
-% The form of Pragma is as follows: 
-% {'tests' : []}
-%
+%runUpdate(inserts,deletes,updates). 
 
-%% getTestWitnesses([],[]).
-%% getTestWitnesses([Test|Tests],[Witness|Witnesses]) :-
-%%     call(Test,Witness), 
-%%     getTestWitnesses(Tests,Witnesses).
+% The form of Pragma is as follows: 
+% {'tests' : [test1, test2, ... testn] ... }
+%
 
 checkInstanceUpdate(Update, Pragma, Witnesses) :- 
     test(Test),
-    bagOf(W, call(Test, W), WL).
+    member(tests=TList,Pragma), 
+    member(Test, TList),
+    bagOf(W, call(Test, W), Witnesses).
 
 :- meta_predicate validate(1,?).
 validate(Test, Stream) :- 
