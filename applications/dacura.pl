@@ -24,11 +24,7 @@ http:location(dacura, '/dacura', []).
 
 :- use_module(library(http/json_convert)). 
 
-% convenience function
-getKey(Key,Assoc,Val,Default) :- 
-    member(Key=Val, Assoc) *-> 
-	  true 
-    ; Val = Default.
+:- use_module(utils). 
 
 dacura_reply(_Request) :- 
     reply_html_page(cliopatria(default), 
@@ -39,26 +35,45 @@ dacura_reply(_Request) :-
 		    ]).
 
 
-dacura_instance_update(Request) :- 
+dacura_schema_update(Request) :- 
     http_parameters(Request, [], [form_data(Data)]), 
-    
+
+    format('Content-type: application/json~n~n'), 
+
+    % Get current stdout 
+    current_output(Out), 
+
+    %format('Content-type: text/html~n~n'), 
+    %write('testing testing, one two three'), 
+
     % use pragma from client
     getKey(pragma, Data, Pragma_String, []),
-    getKey(update, Data, Update, ''), 
+    getKey(update, Data, Update_String, ''), 
+
+    atom_json_term(Pragma_String, json(Pragma), []),
+    atom_json_term(Update_String, Update, []),
     
-    atom_json_term(Pragma_String, json(Pragma), [])
+    runSchemaUpdate(Update, Pragma, Witnesses),
+    	
+    json_write(Out,Witnesses).
+
+    
+dacura_instance_update(Request) :- 
+    http_parameters(Request, [], [form_data(Data)]), 
+
+    % use pragma from client
+    getKey(pragma, Data, Pragma_String, []),
+    getKey(update, Data, Update_String, ''), 
+    
+    atom_json_term(Pragma_String, json(_Pragma), []),
+    atom_json_term(Update_String, _Update, []),
 
     % Get current stdout 
     current_output(Out), 
     
-    checkInstanceUpdate(Update, Pragma, Witnesses), 
+    runInstanceUpdate(Update, Pragma, Witnesses), 
+    Witnesses = [],
 
     format('Content-type: application/json~n~n'), 
 
     json_write(Out,Witnesses).
-
-    
-dacura_schema_update(Request) :- 
-    http_parameters(Request, [], [form_data(Data)]), 
-    format('Content-type: application/json~n~n'), 
-    format(JSON). 

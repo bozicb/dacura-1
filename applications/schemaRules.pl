@@ -4,11 +4,13 @@
 		       checkDB/1, 
 		       loadAndCheckDB/3, 
 		       test/1,
+		       runSchemaUpdate/3,
 		       tests/0]).
 
 :- use_module(library(semweb/rdf_db), except([rdf/4])).
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
+:- use_module(utils). 
 
 %% setup namespaces related to rdf, rdfs and owl 
 %%%
@@ -291,6 +293,9 @@ duplicateLabelClasses(X) :-
 		label=Label2]), classHasLabel(Y,Label2), L), 
     \+ count(label(X,Label),L,1).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Local instance checks. 
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Instance Data Generator
@@ -312,7 +317,8 @@ generateLinks(C,X,[Triple],_) :-
     Triple = rdf(X,P,literal(lang(en, 'some arbitrary literal'))).
 generateLinks(C,X,[ rdf(X, P, Y) | O],S) :- 
     classPropertyClass(C,P,K), 
-    (get_assoc(K, S, Y) ->  O=[]  % remove cycles by reusing instances of encountered classes.
+    (get_assoc(K, S, Y) 
+     ->  O=[]  % remove cycles by reusing instances of encountered classes.
      ; atom_concat(K, '-instance', A), 
        gensym(A, Y), 
        put_assoc(K, S, Y, S2),
@@ -322,7 +328,8 @@ generateLinks(C,X,[ rdf(X, P, Y) | O],S) :-
 generateLinks(C,X,[ rdf(X, P, Y) | O],S) :- 
     classPropertyClass(C,P,Super),
     subClassOf(K, Super), 
-    (get_assoc(K, S, Y) ->  O=[]  % remove cycles by reusing instances of encountered classes.
+    (get_assoc(K, S, Y) 
+     ->  O=[]  % remove cycles by reusing instances of encountered classes.
      ; atom_concat(K, '-instance', A), 
        gensym(A, Y), 
        put_assoc(K, S, Y, S2),
@@ -424,7 +431,7 @@ test(orphanSubClasses).
 test(orphanSubProperties). 
 test(orphanInstances).
 test(orphanProperties). 
-test(blankNodes).
+%test(blankNodes).
 test(invalidRange). 
 test(invalidDomain). 
 test(invalidInstanceRanges).
@@ -446,17 +453,53 @@ testMessage(schemaRules:invalidDomain, 'Property with non-unique or invalid doma
 testMessage(schemaRules:invalidInstanceRange, 'Instance data has incorrect type: ') :- !. 
 testMessage(_,'Unknown test').
 
-%runUpdate(inserts,deletes,updates). 
+runInsert([XI,YI,ZI,G]) :- 
+    insert(XI,YI,ZI,G).
 
+runDelete([XI,YI,ZD,G]) :-
+    delete(XI,YI,ZD,G). 
+
+runUpdate([XU,YU,ZU,Action,G]) :-
+    update(XU,YU,ZU,Action,G). 
+
+runDelta(Delta) :-
+    getKey(inserts, Delta, Inserts, []),
+    getKey(deletes, Delta, Deletes, []),
+    getKey(updates, Delta, Updates, []),
+    maplist(runDelete,Inserts),
+    maplist(runDelete,Deletes),
+    maplist(runUpdate,Updates).
+    
 % The form of Pragma is as follows: 
-% {'tests' : [test1, test2, ... testn] ... }
-%
+% {'tests' : [test1, test2, ... testn] ... 
+% }
 
-checkInstanceUpdate(Update, Pragma, Witnesses) :- 
+runSchemaUpdate(Delta, Pragma, Witnesses) :- 
     test(Test),
+    runDelta(Delta), 
     member(tests=TList,Pragma), 
-    member(Test, TList),
-    bagOf(W, call(Test, W), Witnesses).
+    (all=TList 
+     *-> true
+     ;  member(Test, TList)), 
+    (bagof(W, call(Test, W), Witnesses) 
+     ; Witnesses = [], 
+       (commit(instance), 
+	commit(schema) 
+	; true)).
+
+runInstanceUpdate(Delta, Pragma, Witnesses) :- 
+    runDelta(Delta), % first perform update.
+    instanceTest(Test),
+    member(tests=TList,Pragma), 
+    (all=TList 
+     *-> true
+     ;  member(Test, TList)), 
+    (bagof(W, call(Test, W), Witnesses) 
+     ; Witnesses = [], 
+       (commit(instance), 
+	commit(schema) 
+	; true)).
+
 
 :- meta_predicate validate(1,?).
 validate(Test, Stream) :- 
@@ -478,7 +521,7 @@ runValidate(Stream) :-
     validate(Test,Stream). 
 runValidate(_).
 
-:- meta_predicate runTest(1,?).
+:- meta_predicate runTest(1).
 runTest(Test) :- 
     atom_concat('testData/', Test, TestBegin), 
     atom_concat(TestBegin, '.ttl', TestFile), 
@@ -520,3 +563,5 @@ checkDB(Output) :-
     write(Stream, 'Finished checking DB!'),
     close(Stream), 
     streamString(Handle, Output).
+
+
