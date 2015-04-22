@@ -5,9 +5,10 @@
 		       loadAndCheckDB/3, 
 		       test/1,
 		       runSchemaUpdate/3,
+		       runInstanceUpdate/3,
 		       tests/0]).
 
-:- use_module(library(semweb/rdf_db), except([rdf/4])).
+:- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils). 
@@ -218,15 +219,6 @@ invalidDomain(L) :- setof(json([error=notUniqueValidDomain,
 				property=Y, 
 				domain=D]), notUniqueValidDomain(Y,D), L).
 
-% type checking of domain and ranges. 
-
-% ranges have more possible targets as they can be literals. 
-:- rdf_meta typeCheckRange(r,t).
-typeCheckRange(T,literal(type(T,_))) :- baseType(T), !.
-typeCheckRange(xsd:string,literal(S)) :- atom(S), !.
-typeCheckRange(T,T) :- class(T), !. 
-typeCheckRange(T,S) :- subClassOf(S,T).
-
 %%%%%%%%%%%%%%%%%%%%%%%
 %% Instance constraints
 
@@ -254,13 +246,29 @@ orphanProperties(L) :- setof(json([error=noInstancePropertyClass,
 				   instance=X,
 				   property=Y]), noInstancePropertyClass(X,Y), L). 
 
-%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Instance Type Checking constraints 
 
-invalidInstanceRange(X, P, R, V) :- 
-    rdf(X,P,V, instance), nl, write(X), instanceProperty(X,P), nl, write(P), range(P, R), nl, 
-    \+ typeCheckRange(R,V).
 
+% ranges have more possible targets as they can be literals. 
+:- rdf_meta typeCheckRange(r,t).
+typeCheckRange(T,literal(type(T,_))) :- baseType(T), !.
+typeCheckRange(xsd:string,literal(S)) :- atom(S), !.
+typeCheckRange(T,V) :- instanceHasClass(V,T), !.  % this probably also 
+                                                  % needs to check class constraints
+typeCheckRange(T,V) :- subClassOf(S,T), typeCheckRange(S,V).
+
+:- rdf_meta typeCheckDomain(r,t). 
+typeCheckDomain(T,V) :- instanceHasClass(V,T), !. % this probably also 
+                                                  % needs to check class constraints
+typeCheckDomain(T,V) :- subClassOf(S,T), typeCheckDomain(S,V).
+
+invalidInstanceRange(X, P, R, V) :- 
+    rdf(X,P,V, instance), 
+    instanceProperty(X,P), 
+    range(P, R),
+    \+ typeCheckRange(R,V).
 
 invalidInstanceRanges(L) :- setof(json([error=invalidInstanceRange,
 					instance=X, 
@@ -268,12 +276,25 @@ invalidInstanceRanges(L) :- setof(json([error=invalidInstanceRange,
 					range=R, 
 					value=V]), invalidInstanceRange(X,P,R,V), L).
 
+invalidInstanceDomain(X, P, D, V) :- 
+    rdf(X,P,V, instance), 
+    instanceProperty(X,P), 
+    domain(P, D),
+    \+ typeCheckDomain(D,V).
+
+invalidInstanceDomains(L) :- setof(json([error=invalidInstanceDomain,
+					 instance=X, 
+					 property=P, 
+					 domain=D, 
+					 value=V]), invalidInstanceDomain(X,P,D,V), L).
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Blank nodes
 
-blankNode(X) :- rdf(X,_,_), rdf_is_bnode(X).
-blankNode(Y) :- rdf(_,Y,_), rdf_is_bnode(Y).
-blankNode(Z) :- rdf(_,_,Z), rdf_is_bnode(Z).
+blankNode(X) :- (G = instance ; G = schema), rdf(X,_,_,G), rdf_is_bnode(X).
+blankNode(Y) :- (G = instance ; G = schema), rdf(_,Y,_,G), rdf_is_bnode(Y).
+blankNode(Z) :- (G = instance ; G = schema), rdf(_,_,Z,G), rdf_is_bnode(Z).
 
 blankNodes(L) :- setof(json([error=blankNode,
 			     blank=X]), blankNode(X), L). 
@@ -294,8 +315,25 @@ duplicateLabelClasses(X) :-
     \+ count(label(X,Label),L,1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Local instance checks. 
+%%% Instance checking 
 
+checkInstanceClass(X, _, _, json([error=orphanInstance, 
+				  class=C])) :- 
+    orphanInstance(X,C).
+
+checkPropertyDomain(X, P, V, json([error=invalidInstanceDomain, 
+				   instance=X, 
+				   property=P, 
+				   domain=D, 
+				   value=V])) :- 
+    invalidInstanceDomain(X, P, D, V).
+
+checkPropertyRange(X, P, V, json([error=invalidInstanceRange, 
+				  instance=X, 
+				  property=P, 
+				  range=R, 
+				  value=V])) :- 
+    invalidInstanceRange(X, P, R, V).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Instance Data Generator
@@ -399,27 +437,31 @@ corruptDB(N) :-
 %% Schema and Instance
 
 demoDB :-  
-    rdf_retractall(_, _, _, _), 
+    rdf_retractall(_, _, _, instance), 
+    rdf_retractall(_, _, _, schema), 
     rdf_load('testData/plants.rdf', [graph(instance)]), 
     rdf_load('testData/plant-onto.rdf', [graph(schema)]).
 
 demoDB(Schema) :- 
-    rdf_retractall(_, _, _, _), 
+    rdf_retractall(_, _, _, instance), 
+    rdf_retractall(_, _, _, schema), 
     rdf_load(Schema, [graph(schema)]). 
 
-demoDB(Schema,Instance) :- 
-    rdf_retractall(_, _, _, _), 
+demoDB(Schema,Instance) :-
+    rdf_retractall(_, _, _, instance), 
+    rdf_retractall(_, _, _, schema), 
     rdf_load(Schema, [graph(schema)]), 
     rdf_load(Instance, [graph(instance)]).
 
 demoDB(Schema,Instance,Options) :- 
-    rdf_retractall(_, _, _, _), 
+    rdf_retractall(_, _, _, instance), 
+    rdf_retractall(_, _, _, schema), 
     rdf_load(Schema, [graph(schema)|Options]),     
     rdf_load(Instance, [graph(instance)|Options]). 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% DB Checker
+%%% DB Schema / Instance Checker
 
 %! test(+Test:atom) is det.
 %! test(?Test:atom) is nondet.
@@ -431,10 +473,11 @@ test(orphanSubClasses).
 test(orphanSubProperties). 
 test(orphanInstances).
 test(orphanProperties). 
-%test(blankNodes).
+test(blankNodes).
 test(invalidRange). 
 test(invalidDomain). 
 test(invalidInstanceRanges).
+test(invalidInstanceDomains).
 
 %! testMessage(+Test:atom, -Message:atom) is det.
 %! testMessage(?Test:atom, -Message:atom) is det.
@@ -459,24 +502,23 @@ runInsert([XI,YI,ZI,G]) :-
 runDelete([XI,YI,ZD,G]) :-
     delete(XI,YI,ZD,G). 
 
+% obsolete
 runUpdate([XU,YU,ZU,Action,G]) :-
     update(XU,YU,ZU,Action,G). 
 
 runDelta(Delta) :-
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
-    getKey(updates, Delta, Updates, []),
     maplist(runDelete,Inserts),
-    maplist(runDelete,Deletes),
-    maplist(runUpdate,Updates).
+    maplist(runDelete,Deletes).
     
 % The form of Pragma is as follows: 
 % {'tests' : [test1, test2, ... testn] ... 
 % }
 
 runSchemaUpdate(Delta, Pragma, Witnesses) :- 
+    runDelta(Delta), % first perform update
     test(Test),
-    runDelta(Delta), 
     member(tests=TList,Pragma), 
     (all=TList 
      *-> true
@@ -487,17 +529,35 @@ runSchemaUpdate(Delta, Pragma, Witnesses) :-
 	commit(schema) 
 	; true)).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% DB Instance Checking. 
+
+instanceTest(checkInstanceClass).
+instanceTest(checkPropertyRange). 
+instanceTest(checkPropertyDomain). 
+
 runInstanceUpdate(Delta, Pragma, Witnesses) :- 
-    runDelta(Delta), % first perform update.
+    % first perform update.
+    runDelta(Delta), 
+
+    % obtain change information
+    getKey(inserts, Delta, Inserts, []),
+    getKey(deletes, Delta, Deletes, []),
+
+    % getKey(updates, Delta, Updates, []),
+
+    (member([X,Y,Z,instance], Inserts) 
+     ; member([X,Y,Z,instance], Deletes)),
+
     instanceTest(Test),
+
     member(tests=TList,Pragma), 
     (all=TList 
      *-> true
      ;  member(Test, TList)), 
-    (bagof(W, call(Test, W), Witnesses) 
+    (bagof(W, call(Test, X, Y, Z, W), Witnesses)
      ; Witnesses = [], 
-       (commit(instance), 
-	commit(schema) 
+       (commit(instance)
 	; true)).
 
 
@@ -505,7 +565,6 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
 validate(Test, Stream) :- 
     call(Test, C),
     nl(Stream),	
-    write('Here'),
     testMessage(Test, Message),
     write(Test),nl,
     write(Stream, Message),

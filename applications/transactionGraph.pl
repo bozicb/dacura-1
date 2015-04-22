@@ -1,6 +1,6 @@
-:- module(transactionGraph,[rdf/4, insert/4, update/5, delete/4, commit/1]).
+:- module(transactionGraph,[rdf/4, rdf_retractall/4, insert/4, update/5, delete/4, commit/1]).
 
-:- use_module(library(semweb/rdf_db), except([rdf/4])). 
+:- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])). 
 
 % How to implement post-condition transactions
 
@@ -56,3 +56,10 @@ commit(G) :-
     rdf_db:rdf(XP,YP,ZP,GP), 
     rdf_assert(XP,YP,ZP,GP).
     
+rdf_retractall(X,Y,Z,G) :- 
+    rdf_db:rdf_retractall(X,Y,Z,G), 
+    neg(G,GN), 
+    rdf_db:rdf_retractall(X,Y,Z,GN), 
+    pos(G,GP), 
+    rdf_db:rdf_retractall(X,Y,Z,GP). 
+
