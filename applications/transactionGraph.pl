@@ -4,7 +4,12 @@
 
 % How to implement post-condition transactions
 
-neg(A1,A2) :- atom_concat('neg-', A1, A2). 
+neg(schema, 'neg-schema') :- !.
+neg(instance, 'neg-instance') :- !.
+neg(A1,A2) :- atom_concat('neg-', A1, A2).
+
+pos(schema, 'pos-schema') :- !.
+pos(instance, 'pos-instance') :- !.
 pos(A1,A2) :- atom_concat('pos-', A1, A2).
 
 :- rdf_meta rdf(r,r,o,?).

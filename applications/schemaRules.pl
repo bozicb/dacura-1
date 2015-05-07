@@ -253,26 +253,30 @@ orphanProperties(L) :- setof(json([error=noInstancePropertyClass,
 % ranges have more possible targets as they can be literals. 
 :- rdf_meta typeCheckRange(r,t).
 typeCheckRange(T,literal(type(T,_))) :- baseType(T), !.
+typeCheckRange(_,literal(type(_,_))) :- !, false.
 typeCheckRange(xsd:string,literal(S)) :- atom(S).
 typeCheckRange(xsd:string,literal(lang(S,_))) :- atom(S), !.
+typeCheckRange(xsd:string, _) :- !, false.
 typeCheckRange(rdfs:'PlainLiteral',literal(S)) :- atom(S).
 typeCheckRange(rdfs:'PlainLiteral',literal(lang(S,_))) :- atom(S), !.
+typeCheckRange(rdfs:'PlainLiteral',_) :- !, false.
 typeCheckRange(rdfs:'Literal',literal(S)) :- atom(S). % is this valid?
 typeCheckRange(rdfs:'Literal',literal(lang(S,_))) :- atom(S), !. % is this valid?
-typeCheckRange(T,V) :- instanceHasClass(V,T), !.  % this probably also 
-                                                  % needs to check class constraints
-typeCheckRange(T,V) :- subClassOf(S,T), typeCheckRange(S,V).
+typeCheckRange(rdfs:'PlainLiteral',_) :- !, false.
+typeCheckRange(T,V) :- instanceHasClass(V,T), !.  % this probably also needs to check class constraints
+typeCheckRange(T,V) :- subClass(S,T), typeCheckRange(S,V).
 
 :- rdf_meta typeCheckDomain(r,t). 
 typeCheckDomain(T,V) :- instanceHasClass(V,T), !. % this probably also 
                                                   % needs to check class constraints
 
-typeCheckDomain(T,V) :- subClassOf(S,T), typeCheckDomain(S,V).
+typeCheckDomain(T,V) :- subClass(S,T), typeCheckDomain(S,V).
 
 invalidInstanceRange(X, P, R, VA) :- 
-    rdf(X,P,V, instance), 
-    instanceProperty(X,P), 
+    rdf_resource(X), 
+    instanceProperty(X,P),
     range(P, R),
+    rdf(X,P,V, instance),
     render(V,VA),
     \+ typeCheckRange(R,V).
 
@@ -282,18 +286,16 @@ invalidInstanceRanges(L) :- setof(json([error=invalidInstanceRange,
 					range=R, 
 					value=V]), invalidInstanceRange(X,P,R,V), L).
 
-invalidInstanceDomain(X, P, D, VA) :- 
-    rdf(X,P,V, instance), 
+invalidInstanceDomain(X, P, D) :- 
+    rdf_resource(X),
     instanceProperty(X,P), 
     domain(P, D),
-    render(V,VA),
     \+ typeCheckDomain(D,X).
 
 invalidInstanceDomains(L) :- setof(json([error=invalidInstanceDomain,
 					 instance=X, 
 					 property=P, 
-					 domain=D, 
-					 value=V]), invalidInstanceDomain(X,P,D,V), L).
+					 domain=D]), invalidInstanceDomain(X,P,D), L).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -324,23 +326,22 @@ duplicateLabelClasses(X) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Instance checking 
 
-checkInstanceClass(X, _, _, json([error=orphanInstance, 
-				  instance=X,
-				  class=C])) :- 
+checkInstanceClass(X, json([error=orphanInstance, 
+			    instance=X,
+			    class=C])) :- 
     orphanInstance(X,C).
 
-checkPropertyDomain(X, P, V, json([error=invalidInstanceDomain, 
-				   instance=X, 
-				   property=P, 
-				   domain=D, 
-				   value=V])) :- 
-    invalidInstanceDomain(X, P, D, V).
+checkPropertyDomain(X, json([error=invalidInstanceDomain, 
+			     instance=X, 
+			     property=P, 
+			     domain=D])) :- 
+    invalidInstanceDomain(X, P, D).
 
-checkPropertyRange(X, P, V, json([error=invalidInstanceRange, 
-				  instance=X, 
-				  property=P, 
-				  range=R, 
-				  value=V])) :- 
+checkPropertyRange(X, json([error=invalidInstanceRange, 
+			    instance=X, 
+			    property=P, 
+			    range=R, 
+			    value=V])) :- 
     invalidInstanceRange(X, P, R, V).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -603,8 +604,8 @@ instanceValidator(Delta,Pragma,W) :-
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
     
-    (member([X,Y,Z,instance], Inserts) 
-     ; member([X,Y,Z,instance], Deletes)),
+    (member([X,_,_,instance], Inserts) 
+     ; member([X,_,_,instance], Deletes)),
     
     instanceTest(Test),
 
@@ -614,7 +615,7 @@ instanceValidator(Delta,Pragma,W) :-
      *-> true
      ;  member(Test, TList)), 
 
-    call(Test, X, Y, Z, W).
+    call(Test, X, W).
 
 runInstanceUpdate(Delta, Pragma, Witnesses) :- 
     % first perform update.
@@ -633,8 +634,9 @@ fullInstanceValidator(Pragma,W) :-
      *-> true
      ;  member(Test, TList)), 
     
-    rdf(X,Y,Z,instance),
-    call(Test, X, Y, Z, W).
+    % rdf(X,Y,Z,instance),
+    rdf_resource(X), 
+    call(Test, X, W).
 
 runFullValidation(Pragma,Witnesses) :- 
     runSchemaUpdate([],Pragma,SchemaWitnesses), 
