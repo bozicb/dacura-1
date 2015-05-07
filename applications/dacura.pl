@@ -88,7 +88,7 @@ dacura_validate(Request) :-
 
     atom_json_term(Pragma_String, json(Pragma), []),
 
-    runSchemaUpdate([], Pragma, Witnesses), 
+    runFullValidation(Pragma, Witnesses), 
 
     json_write(Out,Witnesses).
     

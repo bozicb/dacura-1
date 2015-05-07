@@ -6,6 +6,7 @@
 		       test/1,
 		       runSchemaUpdate/3,
 		       runInstanceUpdate/3,
+		       runFullValidation/2,
 		       tests/0]).
 
 :- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
@@ -19,11 +20,6 @@
 %:- rdf_register_ns(rdf, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#').
 %:- rdf_register_ns(rdfs, 'http://www.w3.org/2000/01/rdf-schema#').
 %:- rdf_register_ns(owl, 'http://www.w3.org/2002/07/owl#').
-
-%%% Utils 
-
-count(_,[], 0).
-count(A,[B|L],C) :- count(A,L,K), (A=B -> C is K+1 ; C=K).
 
 %%%%%%%%%%%%%%%%%%%%
 % Schema constraints
@@ -188,6 +184,8 @@ baseType(xsd:token).
 baseType(xsd:'NMTOKEN'). 
 baseType(xsd:'Name'). 
 baseType(xsd:'NCName'). 
+baseType(rdf:'PlainLiteral').
+baseType(rdf:'Literal').
 
 :- rdf_meta type(r).
 type(X) :- baseType(X), !. 
@@ -195,8 +193,10 @@ type(X) :- class(X).
 
 % range / domain
 
+:- rdf_meta range(r,r,t,o).
 range(P,R) :- rdf(P, rdfs:range, R, schema).
 
+:- rdf_meta domain(r,r,t,o).
 domain(P,D) :- rdf(P, rdfs:domain, D, schema). 
 
 validRange(P,R) :- range(P,R), type(R).
@@ -250,11 +250,15 @@ orphanProperties(L) :- setof(json([error=noInstancePropertyClass,
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Instance Type Checking constraints 
 
-
 % ranges have more possible targets as they can be literals. 
 :- rdf_meta typeCheckRange(r,t).
 typeCheckRange(T,literal(type(T,_))) :- baseType(T), !.
-typeCheckRange(xsd:string,literal(S)) :- atom(S), !.
+typeCheckRange(xsd:string,literal(S)) :- atom(S).
+typeCheckRange(xsd:string,literal(lang(S,_))) :- atom(S), !.
+typeCheckRange(rdfs:'PlainLiteral',literal(S)) :- atom(S).
+typeCheckRange(rdfs:'PlainLiteral',literal(lang(S,_))) :- atom(S), !.
+typeCheckRange(rdfs:'Literal',literal(S)) :- atom(S). % is this valid?
+typeCheckRange(rdfs:'Literal',literal(lang(S,_))) :- atom(S), !. % is this valid?
 typeCheckRange(T,V) :- instanceHasClass(V,T), !.  % this probably also 
                                                   % needs to check class constraints
 typeCheckRange(T,V) :- subClassOf(S,T), typeCheckRange(S,V).
@@ -262,12 +266,14 @@ typeCheckRange(T,V) :- subClassOf(S,T), typeCheckRange(S,V).
 :- rdf_meta typeCheckDomain(r,t). 
 typeCheckDomain(T,V) :- instanceHasClass(V,T), !. % this probably also 
                                                   % needs to check class constraints
+
 typeCheckDomain(T,V) :- subClassOf(S,T), typeCheckDomain(S,V).
 
-invalidInstanceRange(X, P, R, V) :- 
+invalidInstanceRange(X, P, R, VA) :- 
     rdf(X,P,V, instance), 
     instanceProperty(X,P), 
     range(P, R),
+    render(V,VA),
     \+ typeCheckRange(R,V).
 
 invalidInstanceRanges(L) :- setof(json([error=invalidInstanceRange,
@@ -276,11 +282,12 @@ invalidInstanceRanges(L) :- setof(json([error=invalidInstanceRange,
 					range=R, 
 					value=V]), invalidInstanceRange(X,P,R,V), L).
 
-invalidInstanceDomain(X, P, D, V) :- 
+invalidInstanceDomain(X, P, D, VA) :- 
     rdf(X,P,V, instance), 
     instanceProperty(X,P), 
     domain(P, D),
-    \+ typeCheckDomain(D,V).
+    render(V,VA),
+    \+ typeCheckDomain(D,X).
 
 invalidInstanceDomains(L) :- setof(json([error=invalidInstanceDomain,
 					 instance=X, 
@@ -318,6 +325,7 @@ duplicateLabelClasses(X) :-
 %%% Instance checking 
 
 checkInstanceClass(X, _, _, json([error=orphanInstance, 
+				  instance=X,
 				  class=C])) :- 
     orphanInstance(X,C).
 
@@ -340,36 +348,90 @@ checkPropertyRange(X, P, V, json([error=invalidInstanceRange,
 
 :- use_module(library(assoc)). 
 
+% These can be elaborated as desired.
+:- rdf_meta baseTypeGenerator(r,t).
+baseTypeGenerator(xsd:string, literal(xsd:string,'This is a string')). 
+baseTypeGenerator(xsd:boolean, literal(xsd:boolean, 'true')). 
+baseTypeGenerator(xsd:decimal, literal(xsd:decimal, '10.5')). 
+baseTypeGenerator(xsd:integer, literal(xsd:integer, '1')). 
+baseTypeGenerator(xsd:double, literal(xsd:double, '13423432.2342343')). 
+baseTypeGenerator(xsd:float, literal(xsd:float, '134432.23443')).
+baseTypeGenerator(xsd:time, literal(xsd:time, '09:00:00')).
+baseTypeGenerator(xsd:dateTime, literal(xsd:dateTime, '2002-05-30T09:00:00')). 
+baseTypeGenerator(xsd:dateTimeStamp, literal(xsd:dateTimeStamp, '2004-04-12T13:20:00-05:00')).
+baseTypeGenerator(xsd:gYear, literal(xsd:gYear, '2000')). 
+baseTypeGenerator(xsd:gMonth, literal(xsd:gMonth, '05')). 
+baseTypeGenerator(xsd:gDay, literal(xsd:gDay, '01')). 
+baseTypeGenerator(xsd:gYearMonth, literal(xsd:gYearMonth, '2000-05')).
+baseTypeGenerator(xsd:gMonthDay, literal(xsd:gMonthDay, '05-01')).
+baseTypeGenerator(xsd:duration, literal(xsd:duration, '0001-01-01T01:01:01-01:01')). 
+baseTypeGenerator(xsd:yearMonthDuration, literal(xsd:yearMonthDuration, '01-01')). 
+baseTypeGenerator(xsd:dayTimeDuration, literal(xsd:dayTimeDuration, '01-01:01:01')). 
+baseTypeGenerator(xsd:byte, literal(xsd:byte, '12')). 
+baseTypeGenerator(xsd:short, literal(xsd:short, '12')). 
+baseTypeGenerator(xsd:int, literal(xsd:int, '12')). 
+baseTypeGenerator(xsd:long, literal(xsd:long, '12')). 
+baseTypeGenerator(xsd:unsignedByte, literal(xsd:unsignedByte, '12')). 
+baseTypeGenerator(xsd:unsignedInt, literal(xsd:unsignedInt, '12')). 
+baseTypeGenerator(xsd:unsignedLong, literal(xsd:unsignedLong, '12')). 
+baseTypeGenerator(xsd:positiveInteger, literal(xsd:positiveInteger, '12')). 
+baseTypeGenerator(xsd:nonNegativeInteger, literal(xsd:nonNegativeInteger, '12')). 
+baseTypeGenerator(xsd:negativeInteger, literal(xsd:negativeInteger, '-12')). 
+baseTypeGenerator(xsd:nonPositiveInteger, literal(xsd:nonPositiveInteger, '0')). 
+baseTypeGenerator(xsd:base64Binary, literal(xsd:base64Binary, 'ASDF')). 
+baseTypeGenerator(xsd:anyURI, literal(xsd:anyURI, 'http://example.com')). 
+baseTypeGenerator(xsd:language, literal(xsd:language, 'en')). 
+baseTypeGenerator(xsd:normalizedString, literal(xsd:normalizedString, 'Some string')). 
+baseTypeGenerator(xsd:token, literal(xsd:token, 'SomeToken')). 
+baseTypeGenerator(xsd:'NMTOKEN', literal(xsd:'NMTOKEN', 'ASDF')). 
+baseTypeGenerator(xsd:'Name', literal(xsd:'Name', 'myElement')). 
+baseTypeGenerator(xsd:'NCName', literal(xsd:'NCName', 'myElement')). 
+baseTypeGenerator(rdf:'PlainLiteral', literal('This is a literal')).
+
+:- rdf_meta (t,o).
+nameIt(R,Name) :-
+    uri_components(R, uri_components(_,_,Path,Res,Anchor)),
+    (ground(Anchor) *-> Anchor = BaseName
+     ; ground(Res) *-> Res = BaseName
+     ; ground(Path) *-> 
+	     path_end(Path,End),
+	     End = BaseName 
+     ; false),
+    atom_concat('instance-', BaseName, A),
+    gensym(A, Name). 
+
 classRoot(X) :- class(X), \+ subClassOf(X,_).
 
 classPropertyClass(C,P,Z) :- domain(P,C), range(P,Z), class(C), property(P), class(Z).
-classPropertyClass(C,P,Z) :- subClassOf(C, K), classPropertyClass(K, P, Z). 
+%classPropertyClass(C,P,Z) :- subClassOf(C, K), classPropertyClass(K, P, Z). 
+%classPropertyClass(C,P,Z) :- subClassOf(Z, K), classPropertyClass(C, P, K).
 
-% this is bullshit...  prefixes should work under unification 
-%classPropertyLiteral(C,P) :- domain(P,C), range(P,rdf:'PlainLiteral'), class(C), property(P). 
-classPropertyLiteral(C,P) :- domain(P,C), range(P,'http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral'), class(C), property(P). 
+classPropertyLiteral(C,P,LiteralType) :- 
+    domain(P,C), range(P,LiteralType), class(C), property(P), 
+    baseType(LiteralType). 
 
-generateLinks(_,X,[rdf(X, 'http://www.w3.org/2000/01/rdf-schema#label', 'Rubbish')],_).
-generateLinks(C,X,[Triple],_) :- 
-    classPropertyLiteral(C,P), 
-    Triple = rdf(X,P,literal(lang(en, 'some arbitrary literal'))).
-generateLinks(C,X,[ rdf(X, P, Y) | O],S) :- 
-    classPropertyClass(C,P,K), 
+generateLinks(_,X,[rdf(X, 'http://www.w3.org/2000/01/rdf-schema#label', literal('Rubbish'))],_).
+generateLinks(C,X,[rdf(X,P,V)],_) :- 
+    classPropertyLiteral(C,P,LiteralType), 
+    baseTypeGenerator(LiteralType,V).
+generateLinks(C,X,[ rdf(Y,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',K), 
+		    rdf(X, P, Y) | O],S) :- 
+    classPropertyClass(C,P,K),
     (get_assoc(K, S, Y) 
      ->  O=[]  % remove cycles by reusing instances of encountered classes.
-     ; atom_concat(K, '-instance', A), 
-       gensym(A, Y), 
+     ; nameIt(K,Y),
        put_assoc(K, S, Y, S2),
        bagof(R, generateLinks(K, Y, R, S2), L), 
        flatten(L, O)
     ).
-generateLinks(C,X,[ rdf(X, P, Y) | O],S) :- 
+generateLinks(C,X,[rdf(Y,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',K), 
+		   rdf(X, P, Y) | O],S) :- 
     classPropertyClass(C,P,Super),
     subClassOf(K, Super), 
-    (get_assoc(K, S, Y) 
+    class(K), % possible to have ill defined subclasses!
+    (get_assoc(K, S, Y)
      ->  O=[]  % remove cycles by reusing instances of encountered classes.
-     ; atom_concat(K, '-instance', A), 
-       gensym(A, Y), 
+     ; nameIt(K,Y), 
        put_assoc(K, S, Y, S2),
        bagof(R, generateLinks(K, Y, R, S2), L), 
        flatten(L, O)
@@ -377,15 +439,14 @@ generateLinks(C,X,[ rdf(X, P, Y) | O],S) :-
 
 generateClosed(C,[rdf(X,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',C)|O],S) :- 
     class(C),
-    atom_concat(C, '-instance', A),
-    gensym(A, X), 
+    nameIt(C,X),
     put_assoc(C, S, X, S2),
     bagof(R, generateLinks(C, X, R, S2), L), 
     flatten(L,O).
 generateClosed(C,[rdf(X,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',Sub)|O],S) :- 
-    subClassOf(Sub,C),
-    atom_concat(Sub, '-instance', A),
-    gensym(A, X), 
+    subClassOf(Sub,C), %possible to have ill defined subclasses!
+    class(Sub),
+    nameIt(Sub,X),
     put_assoc(Sub, S, X, S2),
     bagof(R, generateLinks(Sub, X, R, S2), L), 
     flatten(L,O).
@@ -395,8 +456,9 @@ generate(L) :- empty_assoc(S), classRoot(C), generateClosed(C, L, S).
 generateN(N,L) :- findnsols(N, L1, generate(L1), LL), flatten(LL, L).
 
 :- use_module(library(apply)).
-addToDB(rdf(X,Y,Z)) :- rdf_assert(X,Y,Z,instance). 
 
+:- rdf_meta addToDB(t).
+addToDB(rdf(X,Y,Z)) :- rdf_assert(X,Y,Z,instance). 
 
 % N specifies number of times to decend the class hierarchy rather than 
 % the number of classes or triples, M is the number of solutions to look for 
@@ -406,7 +468,7 @@ populateDB(0, _) :- !.
 populateDB(N, M) :- N2 is N-1, generateN(N,L), maplist(addToDB, L), populateDB(N2, M). 
 
 % sorry about the magic numbers...
-populateDB(N) :- HierarchyTravesals=300, populateDB(N, HierarchyTravesals). 
+populateDB(N) :- HierarchyTravesals=30, populateDB(N, HierarchyTravesals). 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -525,41 +587,64 @@ runSchemaUpdate(Delta, Pragma, Witnesses) :-
      ;  member(Test, TList)), 
     (bagof(W, call(Test, W), Witnesses) 
      ; Witnesses = [], 
-       (commit(instance), 
+       (member(commit='true',Pragma), commit(instance), 
 	commit(schema) 
 	; true)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DB Instance Checking. 
 
-instanceTest(checkInstanceClass).
-instanceTest(checkPropertyRange). 
-instanceTest(checkPropertyDomain). 
+instanceTest(schemaRules:checkInstanceClass).
+instanceTest(schemaRules:checkPropertyRange). 
+instanceTest(schemaRules:checkPropertyDomain). 
+
+instanceValidator(Delta,Pragma,W) :-
+    % obtain change information
+    getKey(inserts, Delta, Inserts, []),
+    getKey(deletes, Delta, Deletes, []),
+    
+    (member([X,Y,Z,instance], Inserts) 
+     ; member([X,Y,Z,instance], Deletes)),
+    
+    instanceTest(Test),
+
+    member(tests=TList,Pragma), 
+
+    (all=TList 
+     *-> true
+     ;  member(Test, TList)), 
+
+    call(Test, X, Y, Z, W).
 
 runInstanceUpdate(Delta, Pragma, Witnesses) :- 
     % first perform update.
     runDelta(Delta), 
+    (bagof(W, instanceValidator(Delta,Pragma, W), Witnesses)
+     ; Witnesses = [], 
+       (member(commit='true',Pragma), commit(instance)
+	; true)).
 
-    % obtain change information
-    getKey(inserts, Delta, Inserts, []),
-    getKey(deletes, Delta, Deletes, []),
-
-    % getKey(updates, Delta, Updates, []),
-
-    (member([X,Y,Z,instance], Inserts) 
-     ; member([X,Y,Z,instance], Deletes)),
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Full validation.
+fullInstanceValidator(Pragma,W) :- 
     instanceTest(Test),
-
     member(tests=TList,Pragma), 
     (all=TList 
      *-> true
      ;  member(Test, TList)), 
-    (bagof(W, call(Test, X, Y, Z, W), Witnesses)
-     ; Witnesses = [], 
-       (commit(instance)
-	; true)).
+    
+    rdf(X,Y,Z,instance),
+    call(Test, X, Y, Z, W).
 
+runFullValidation(Pragma,Witnesses) :- 
+    runSchemaUpdate([],Pragma,SchemaWitnesses), 
+    
+    % schema updates can be empty and will check all, but instances can not!
+    (bagof(W, fullInstanceValidator(Pragma,W), InstanceWitnesses) 
+     ; InstanceWitnesses = []),
+    
+    append(SchemaWitnesses,InstanceWitnesses,Witnesses).
+		  
 
 :- meta_predicate validate(1,?).
 validate(Test, Stream) :- 
