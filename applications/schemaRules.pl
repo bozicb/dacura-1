@@ -559,11 +559,15 @@ testMessage(schemaRules:invalidDomain, 'Property with non-unique or invalid doma
 testMessage(schemaRules:invalidInstanceRange, 'Instance data has incorrect type: ') :- !. 
 testMessage(_,'Unknown test').
 
-runInsert([XI,YI,ZI,G]) :- 
-    insert(XI,YI,ZI,G).
+:- rdf_meta runInsert(r,r,o,?).
+runInsert([XI,YI,ZI,G]) :-
+    transactionGraph:insert(XI,YI,ZI,G).
 
+%catch(transactionGraph:insert(XI,YI,ZI,G), Error, write_term(Error,[quoted(true)])). 
+
+:- rdf_meta runDelete(r,r,o,?).
 runDelete([XI,YI,ZD,G]) :-
-    delete(XI,YI,ZD,G). 
+    transactionGraph:delete(XI,YI,ZD,G).
 
 % obsolete
 runUpdate([XU,YU,ZU,Action,G]) :-
@@ -572,25 +576,26 @@ runUpdate([XU,YU,ZU,Action,G]) :-
 runDelta(Delta) :-
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
-    maplist(runDelete,Inserts),
-    maplist(runDelete,Deletes).
+    maplist(schemaRules:runInsert,Inserts),
+    maplist(schemaRules:runDelete,Deletes) ; true.
     
 % The form of Pragma is as follows: 
 % {'tests' : [test1, test2, ... testn] ... 
 % }
 
-runSchemaUpdate(Delta, Pragma, Witnesses) :- 
+runSchemaUpdate(Delta, Pragma, Witnesses) :-
+
     runDelta(Delta), % first perform update
     test(Test),
     member(tests=TList,Pragma), 
     (all=TList 
      *-> true
      ;  member(Test, TList)), 
-    (bagof(W, call(Test, W), Witnesses) 
-     ; Witnesses = [], 
-       (member(commit='true',Pragma), commit(instance), 
-	commit(schema) 
-	; true)).
+    findall(W, call(Test, W), Witnesses), 
+    (member(commit='true',Pragma),
+     commit(instance), 
+     commit(schema) 
+     ; true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DB Instance Checking. 
@@ -617,13 +622,13 @@ instanceValidator(Delta,Pragma,W) :-
 
     call(Test, X, W).
 
-runInstanceUpdate(Delta, Pragma, Witnesses) :- 
+runInstanceUpdate(Delta, Pragma, Witnesses) :-
     % first perform update.
-    runDelta(Delta), 
-    (bagof(W, instanceValidator(Delta,Pragma, W), Witnesses)
-     ; Witnesses = [], 
-       (member(commit='true',Pragma), commit(instance)
-	; true)).
+    runDelta(Delta),
+    findall(W, schemaRules:instanceValidator(Delta,Pragma, W), Witnesses),
+    (member(commit='true',Pragma),
+     commit(instance)
+     ; true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Full validation.
@@ -639,11 +644,10 @@ fullInstanceValidator(Pragma,W) :-
     call(Test, X, W).
 
 runFullValidation(Pragma,Witnesses) :- 
-    runSchemaUpdate([],Pragma,SchemaWitnesses), 
+    runSchemaUpdate([inserts=[], deletes=[]],Pragma,SchemaWitnesses), 
     
     % schema updates can be empty and will check all, but instances can not!
-    (bagof(W, fullInstanceValidator(Pragma,W), InstanceWitnesses) 
-     ; InstanceWitnesses = []),
+    findall(W, fullInstanceValidator(Pragma,W), InstanceWitnesses),
     
     append(SchemaWitnesses,InstanceWitnesses,Witnesses).
 		  

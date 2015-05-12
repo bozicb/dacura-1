@@ -21,7 +21,7 @@ rdf(X,Y,Z,G) :- rdf_db:rdf(X,Y,Z,G).
 % it only affects namespace prefix handling.
 :- rdf_meta insert(r,r,o,?).
 insert(X,Y,Z,G) :- 
-    pos(G,G2), 
+    pos(G,G2),
     % positive pos graph
     rdf_assert(X,Y,Z,G2), 
     % retract from the negative graph, if it exists.
@@ -53,18 +53,21 @@ update(X,Y,Z,G,Action) :-
      ; new_triple(X,Y,Z,Action,X2,Y2,Z2),
        rdf_assert(X2,Y2,Z2,G2)). % doesn't yet exist in pos graph (insert). 
 
-commit(G) :- 
-    neg(G,GN), 
-    rdf_db:rdf(XN,YN,ZN,GN),
-    rdf_retractall(XN,YN,ZN,GN), 
+commit(G) :-
     pos(G,GP), 
-    rdf_db:rdf(XP,YP,ZP,GP), 
-    rdf_assert(XP,YP,ZP,GP).
+    findall([XP,YP,ZP,GP], rdf_db:rdf(XP,YP,ZP,GP), LP),
+    maplist(insert_positive, LP),
+    neg(G,GN), 
+    findall([XN,YN,ZN,GN], rdf_db:rdf(XN,YN,ZN,GN), LN), 
+    maplist(retract_negative, LN).
+
+insert_positive([X,Y,Z,GP]) :-
+    pos(G,GP),
+    rdf_db:rdf_assert(X,Y,Z,G),
+    rdf_db:rdf_retractall(X,Y,Z,GP).
     
-rdf_retractall(X,Y,Z,G) :- 
-    rdf_db:rdf_retractall(X,Y,Z,G), 
+retract_negative([X,Y,Z,GN]) :- 
     neg(G,GN), 
-    rdf_db:rdf_retractall(X,Y,Z,GN), 
-    pos(G,GP), 
-    rdf_db:rdf_retractall(X,Y,Z,GP). 
+    rdf_db:rdf_retractall(X,Y,Z,G), 
+    rdf_db:rdf_retractall(X,Y,Z,GN).
 

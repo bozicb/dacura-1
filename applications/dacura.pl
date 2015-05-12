@@ -14,6 +14,7 @@
 :- use_module(library(http/json_convert)). 
 :- use_module(library(semweb/rdf_db)).
 :- use_module(library(semweb/rdf_label)).
+:- use_module(library(semweb/rdf_persistency)).
 :- use_module(schemaRules). 
 
 http:location(dacura, '/dacura', []).
@@ -37,7 +38,7 @@ dacura_reply(_Request) :-
 
 dacura_schema_update(Request) :- 
     http_parameters(Request, [], [form_data(Data)]), 
-
+    
     format('Content-type: application/json~n~n'), 
 
     % Get current stdout 
@@ -48,9 +49,15 @@ dacura_schema_update(Request) :-
     getKey(update, Data, Update_String, '[]'), 
 
     atom_json_term(Pragma_String, json(Pragma), []),
-    atom_json_term(Update_String, Update, []),
-    
-    runSchemaUpdate(Update, Pragma, Witnesses),
+    atom_json_term(Update_String, json(Update), []),
+
+    getKey(inserts, Update, InsertsString, []),
+    getKey(deletes, Update, DeletesString, []),
+    term_string(Inserts, InsertsString),
+    term_string(Deletes, DeletesString),
+    Delta=[inserts=Inserts, deletes=Deletes],
+
+    rdf_transaction(runSchemaUpdate(Delta, Pragma, Witnesses)),
     	
     json_write(Out,Witnesses).
 
@@ -64,13 +71,18 @@ dacura_instance_update(Request) :-
     current_output(Out), 
 
     % use pragma from client
-    getKey(pragma, Data, Pragma_String, '{"tests":"all"}'),
-    getKey(update, Data, Update_String, '[]'), 
+    getKey(pragma, Data, Pragma_String, '{"tests": "all"}'),
+    getKey(update, Data, Update_String, '{"update" : []}'), 
     
     atom_json_term(Pragma_String, json(Pragma), []),
-    atom_json_term(Update_String, Update, []),
-    
-    runInstanceUpdate(Update, Pragma, Witnesses), 
+    atom_json_term(Update_String, json(Update), []),
+    getKey(inserts, Update, InsertsString, []),
+    getKey(deletes, Update, DeletesString, []),
+    term_string(Inserts, InsertsString),
+    term_string(Deletes, DeletesString),
+    Delta=[inserts=Inserts, deletes=Deletes],
+
+    rdf_transaction(runInstanceUpdate(Delta, Pragma, Witnesses)),
 
     json_write(Out,Witnesses).
 
@@ -88,7 +100,7 @@ dacura_validate(Request) :-
 
     atom_json_term(Pragma_String, json(Pragma), []),
 
-    runFullValidation(Pragma, Witnesses), 
+    rdf_transaction(runFullValidation(Pragma, Witnesses)),
 
     json_write(Out,Witnesses).
     
