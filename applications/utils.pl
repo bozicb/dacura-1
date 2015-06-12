@@ -1,4 +1,4 @@
-:- module(utils,[getKey/4, count/3, path_end/2, render/2]).
+:- module(utils,[getKey/4, count/3, path_end/2, render/2, convert_triples/2, literal_convert/2]).
 
 % convenience functions
 getKey(Key,Assoc,Val,Default) :- 
@@ -20,3 +20,24 @@ path_end(P,E) :-
 render(X,R) :- 
     write_to_chars(X, Y), 
     atom_string(R, Y).
+
+convert_triples([],[]). 
+convert_triples([X|T1], [Y|T2]) :-
+    literal_convert(X,Y),
+    convert_triples(T1,T2).
+
+literal_convert([],[]).
+literal_convert([X|T1], [Y|T2]) :-
+    (json(Assoc) = X *-> 
+		     (member(type=Type, Assoc) *->
+			    (member(data=Data, Assoc),
+			     Y = literal(type(Type,Data)))
+		      ; member(lang=Lang, Assoc) *->
+			      (member(data=Data, Assoc),
+			       Y = literal(lang(Data, Lang)))
+		      ; X = Y)
+     ; X = Y),
+    literal_convert(T1,T2).
+       
+	     
+

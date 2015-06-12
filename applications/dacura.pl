@@ -50,11 +50,12 @@ dacura_schema_update(Request) :-
 
     atom_json_term(Pragma_String, json(Pragma), []),
     atom_json_term(Update_String, json(Update), []),
+    
+    getKey(inserts, Update, InsertsPreLiteral, []),
+    getKey(deletes, Update, DeletesPreLiteral, []),
+    convert_triples(InsertsPreLiteral, Inserts),
+    convert_triples(DeletesPreLiteral, Deletes),
 
-    getKey(inserts, Update, InsertsString, []),
-    getKey(deletes, Update, DeletesString, []),
-    term_string(Inserts, InsertsString),
-    term_string(Deletes, DeletesString),
     Delta=[inserts=Inserts, deletes=Deletes],
 
     rdf_transaction(runSchemaUpdate(Delta, Pragma, Witnesses)),
@@ -76,10 +77,12 @@ dacura_instance_update(Request) :-
     
     atom_json_term(Pragma_String, json(Pragma), []),
     atom_json_term(Update_String, json(Update), []),
-    getKey(inserts, Update, InsertsString, []),
-    getKey(deletes, Update, DeletesString, []),
-    term_string(Inserts, InsertsString),
-    term_string(Deletes, DeletesString),
+    
+    getKey(inserts, Update, InsertsPreLiteral, []),
+    getKey(deletes, Update, DeletesPreLiteral, []),
+    convert_triples(InsertsPreLiteral, Inserts),
+    convert_triples(DeletesPreLiteral, Deletes),
+    
     Delta=[inserts=Inserts, deletes=Deletes],
 
     rdf_transaction(runInstanceUpdate(Delta, Pragma, Witnesses)),
@@ -99,7 +102,7 @@ dacura_validate(Request) :-
     getKey(pragma, Data, Pragma_String, '{"tests":"all"}'),
 
     atom_json_term(Pragma_String, json(Pragma), []),
-
+    
     rdf_transaction(runFullValidation(Pragma, Witnesses)),
 
     json_write(Out,Witnesses).
