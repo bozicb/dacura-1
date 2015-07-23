@@ -1,13 +1,10 @@
 
 :- module(schemaRules,[demoDB/0, demoDB/1, demoDB/2, demoDB/3, 
-		       populateDB/1, 
-		       checkDB/1, 
-		       loadAndCheckDB/3, 
-		       test/1,
+		       testInstance/1,
+		       testSchema/1,
 		       runSchemaUpdate/3,
 		       runInstanceUpdate/3,
-		       runFullValidation/2,
-		       tests/0]).
+		       runFullValidation/2]).
 
 :- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
@@ -25,81 +22,81 @@
 % Schema constraints
 
 %classes
-class(X) :- rdf(X, rdf:type, rdfs:'Class', schema).
-class(X) :- rdf(X, rdf:type, owl:'Class', schema). 
+class(X,Schema) :- rdf(X, rdf:type, rdfs:'Class', Schema).
+class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema). 
 
-uniqueClass(Y) :- class(Y), bagof(X, class(X), L), count(Y,L,1).
+uniqueClass(Y,Schema) :- class(Y, Schema), bagof(X, class(X, Schema), L), count(Y,L,1).
 
-notUniqueClass(Y) :- class(Y), bagof(X, class(X), L), \+ count(Y,L,1).
+notUniqueClass(Y, Schema) :- class(Y, Schema), bagof(X, class(X,Schema), L), \+ count(Y,L,1).
 
-duplicateClasses(L) :- setof(json([error=notUniqueClass, 
-				   class=Y]), notUniqueClass(Y), L).
+duplicateClasses(L, Schema) :- setof(json([error=notUniqueClass, 
+					   class=Y]), notUniqueClass(Y, Schema), L).
 
 % subclasses 
 
-subClass(X,Y) :- rdf(X, rdfs:subClassOf, Y, schema).
+subClass(X,Y, Schema) :- rdf(X, rdfs:subClassOf, Y, Schema).
 
-subClassOf(X,Y) :- rdf(X, rdfs:subClassOf, Y, schema).
-subClassOf(X,Z) :- rdf(X, rdfs:subClassOf, Y, schema), subClassOf(Y,Z).
+subClassOf(X,Y,Schema) :- rdf(X, rdfs:subClassOf, Y, Schema).
+subClassOf(X,Z,Schema) :- rdf(X, rdfs:subClassOf, Y, Schema), subClassOf(Y,Z, Schema).
 
-subClassOfClass(X,Y) :- subClassOf(X,Y), class(Y).
+subClassOfClass(X,Y,Schema) :- subClassOf(X,Y,Schema), class(Y,Schema).
 
-notSubClassOfClass(X,Y) :- subClassOf(X,Y), \+ class(Y).
+notSubClassOfClass(X,Y,Schema) :- subClassOf(X,Y,Schema), \+ class(Y,Schema).
 
-orphanSubClasses(L) :- setof(json([error=notSubClassOfClass, 
-				   child=X, 
-				   parent=Y]), notSubClassOfClass(X,Y),L).
+orphanSubClasses(L,Schema) :- setof(json([error=notSubClassOfClass, 
+					  child=X, 
+					  parent=Y]), notSubClassOfClass(X,Y,Schema),L).
 
 % subclass cycles
-classCycleHelp(C,S,[]) :- get_assoc(C,S,true), !.
-classCycleHelp(C,S,[K|P]) :- class(C), subClass(K, C), 
-			     put_assoc(C, S, true, S2), classCycleHelp(K,S2,P).
+classCycleHelp(C,S,[],_) :- get_assoc(C,S,true), !.
+classCycleHelp(C,S,[K|P],Schema) :- class(C,Schema), subClass(K,C,Schema), 
+				    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 
-classCycle(C,P) :- empty_assoc(S), classCycleHelp(C,S,P). 
+classCycle(C,P,Schema) :- empty_assoc(S), classCycleHelp(C,S,P,Schema). 
 
-classCycles(L) :- setof(json([error=classCycle, 
-			      class=CC,
-			      path=P]), classCycle(CC,P), L).
+classCycles(L,Schema) :- setof(json([error=classCycle, 
+				     class=CC,
+				     path=P]), classCycle(CC,P,Schema), L).
 
 % properties.
-:- rdf_meta property(r).
-property(rdfs:label).
-property(rdfs:comment).
-property(P) :- rdf(P, rdf:type, owl:'ObjectProperty', schema).
-property(P) :- rdf(P, rdf:type, owl:'DataProperty', schema).
+:- rdf_meta property(r,o).
+property(rdfs:label,_).
+property(rdfs:comment,_).
+property(P,Schema) :- rdf(P,rdf:type,owl:'ObjectProperty',Schema).
+property(P,Schema) :- rdf(P,rdf:type,owl:'DataProperty',Schema).
 
-uniqueProperty(P) :- property(P), bagof(P2, property(P2), L), count(P,L,1).
+uniqueProperty(P,Schema) :- property(P,Schema), bagof(P2, property(P2,Schema), L), count(P,L,1).
 
-notUniqueProperty(P) :- property(P), bagof(P2, property(P2), L), \+ count(P,L,1).
+notUniqueProperty(P,Schema) :- property(P,Schema), bagof(P2, property(P2,Schema), L), \+ count(P,L,1).
 
-duplicateProperties(L) :- setof(json([error=notUniqueProperty, 
-				      property=P]), notUniqueProperty(P), L).
+duplicateProperties(L,Schema) :- setof(json([error=notUniqueProperty, 
+					     property=P]), notUniqueProperty(P,Schema), L).
 
 % subProperties.
 
-subProperty(X,Y) :- rdf(X, rdfs:subPropertyOf, Y, schema).
+subProperty(X,Y,Schema) :- rdf(X,rdfs:subPropertyOf,Y,Schema).
 
-subPropertyOf(X,Y) :- rdf(X, rdfs:subPropertyOf, Y, schema).
-subPropertyOf(X,Z) :- rdf(X, rdfs:subPropertyOf, Y, schema), subPropertyOf(Y, Z). 
+subPropertyOf(X,Y,Schema) :- rdf(X,rdfs:subPropertyOf,Y,Schema).
+subPropertyOf(X,Z,Schema) :- rdf(X,rdfs:subPropertyOf,Y,Schema), subPropertyOf(Y,Z,Schema). 
 
-subPropertyOfProperty(X,Y) :- subPropertyOf(X,Y), property(Y).
+subPropertyOfProperty(X,Y,Schema) :- subPropertyOf(X,Y,Schema), property(Y,Schema).
 
-notSubPropertyOfProperty(X,Y) :- subPropertyOf(X,Y), \+ property(Y).
+notSubPropertyOfProperty(X,Y,Schema) :- subPropertyOf(X,Y,Schema), \+ property(Y,Schema).
 
-orphanSubProperties(L) :- setof(json([error=notSubPropertyOfProperty, 
-				      child=X,
-				      parent=Y]), notSubPropertyOfProperty(X,Y),L).
+orphanSubProperties(L,Schema) :- setof(json([error=notSubPropertyOfProperty, 
+					     child=X,
+					     parent=Y]), notSubPropertyOfProperty(X,Y,Schema),L).
 
 % subProperty cycles 
 
-propertyCycleHelp(P,S,[]) :- get_assoc(P,S,true), !.
-propertyCycleHelp(P,S,[Q|T]) :- property(P), subProperty(Q, P), put_assoc(P, S, true, S2), propertyCycleHelp(Q,S2,T).
+propertyCycleHelp(P,S,[],_) :- get_assoc(P,S,true), !.
+propertyCycleHelp(P,S,[Q|T],Schema) :- property(P,Schema), subProperty(Q,P,Schema), put_assoc(P, S, true, S2), propertyCycleHelp(Q,S2,T,Schema).
 
-propertyCycle(P,PC) :- empty_assoc(S), propertyCycleHelp(P,S,PC). 
+propertyCycle(P,PC,Schema) :- empty_assoc(S), propertyCycleHelp(P,S,PC,Schema). 
 
-propertyCycles(L) :- setof(json([error=propertyCycle, 
-				 property=P,
-				 path=PC]), propertyCycle(P,PC),L).
+propertyCycles(L,Schema) :- setof(json([error=propertyCycle, 
+					property=P,
+					path=PC]), propertyCycle(P,PC,Schema),L).
 
 %%%% Core types	
 %% xsd:string	Character strings (but not all Unicode character strings)
@@ -188,63 +185,74 @@ baseType(rdf:'PlainLiteral').
 baseType(rdf:'Literal').
 
 :- rdf_meta type(r).
-type(X) :- baseType(X), !. 
-type(X) :- class(X). 
+type(X,_) :- baseType(X), !. 
+type(X,Schema) :- class(X,Schema). 
 
 % range / domain
 
 :- rdf_meta range(r,r,t,o).
-range(P,R) :- rdf(P, rdfs:range, R, schema).
+range(P,R,Schema) :- rdf(P, rdfs:range, R, Schema).
 
 :- rdf_meta domain(r,r,t,o).
-domain(P,D) :- rdf(P, rdfs:domain, D, schema). 
+domain(P,D,Schema) :- rdf(P, rdfs:domain, D, Schema). 
 
-validRange(P,R) :- range(P,R), type(R).
-validDomain(P,D) :- domain(P,D), type(D).
+validRange(P,R,Schema) :- range(P,R,Schema), type(R,Schema).
+validDomain(P,D,Schema) :- domain(P,D,Schema), type(D,Schema).
 
-uniqueValidRange(P,R) :- range(P,R), findall(R2, validRange(P,R2), L), length(L,1).
+uniqueValidRange(P,R,Schema) :- range(P,R,Schema), findall(R2, validRange(P,R2,Schema), L), length(L,1).
 
-uniqueValidDomain(P,D) :- domain(P,D), findall(D2, validRange(P,D2), L), length(L,1).
+uniqueValidDomain(P,D,Schema) :- domain(P,D,Schema), findall(D2, validRange(P,D2,Schema), L), length(L,1).
 
-notUniqueValidRange(P,R) :- range(P,R), findall(R2, validRange(P,R2), L), \+ length(L,1).
+notUniqueValidRange(P,R,Schema) :- range(P,R,Schema), findall(R2, validRange(P,R2,Schema), L), \+ length(L,1).
 
-notUniqueValidDomain(P,D) :- domain(P,D), findall(D2, validDomain(P,D2), L), \+ length(L,1).
+notUniqueValidDomain(P,D,Schema) :- domain(P,D,Schema), findall(D2, validDomain(P,D2,Schema), L), \+ length(L,1).
 
 % does this do too much? 
-invalidRange(L) :- setof(json([error=notUniqueValidRange, 
-			       property=Y,
-			       range=R]), notUniqueValidRange(Y,R), L).
+invalidRange(L,Schema) :- setof(json([error=notUniqueValidRange, 
+				      property=Y,
+				      range=R]), notUniqueValidRange(Y,R,Schema), L).
 
-invalidDomain(L) :- setof(json([error=notUniqueValidDomain, 
-				property=Y, 
-				domain=D]), notUniqueValidDomain(Y,D), L).
+invalidDomain(L,Schema) :- setof(json([error=notUniqueValidDomain, 
+				       property=Y, 
+				       domain=D]), notUniqueValidDomain(Y,D,Schema), L).
 
 %%%%%%%%%%%%%%%%%%%%%%%
 %% Instance constraints
 
-instanceClass(X, Y) :- rdf(X, rdf:type, Y, instance).
+instanceClass(X, Y, Instance) :- rdf(X, rdf:type, Y, Instance).
 
-instance(X) :- instanceClass(X,_).
+instance(X,Instance) :- instanceClass(X,_,Instance).
 
-instanceHasClass(X,C) :- instanceClass(X, C), class(C).
+instanceHasClass(X,C,Instance,Schema) :- instanceClass(X,C,Instance), class(C,Schema).
 
-orphanInstance(X,C) :- instanceClass(X,C), \+ class(C).
+orphanInstance(X,C,Instance,Schema) :- instanceClass(X,C,Instance), \+ class(C,Schema).
 
-noOrphans :- \+ orphanInstance(_,_).
+noOrphans(Instance,Schema) :- \+ orphanInstance(_,_,Instance,Schema).
 
-orphanInstances(L) :- setof(json([error=orphanInstance,
-				  instance=X, 
-				  class=C]),orphanInstance(X,C), L).
+orphanInstances(L,Instance,Schema) :- setof(json([error=orphanInstance,
+						  instance=X, 
+						  class=C]),orphanInstance(X,C,Instance,Schema),
+					    L).
 
-instanceProperty(X,P) :- instance(X), rdf(X, P, _), \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type'. 
+instanceProperty(X,P,Instance) :- instance(X,Instance), rdf(X, P, _,Instance), \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type'. 
 
-instanceHasPropertyClass(X,P) :- instanceProperty(X,P), property(P).
+instanceHasPropertyClass(X,P,Instance,Schema) :-
+    instanceProperty(X,P,Instance),
+    property(P,Schema).
 
-noInstancePropertyClass(X,P) :- instanceProperty(X,P), \+ property(P).
+noInstancePropertyClass(X,P,Instance,Schema) :- instanceProperty(X,P,Instance), \+ property(P,Schema).
 
-orphanProperties(L) :- setof(json([error=noInstancePropertyClass,
-				   instance=X,
-				   property=Y]), noInstancePropertyClass(X,Y), L). 
+orphanProperties(L,Instance,Schema) :- setof(json([error=noInstancePropertyClass,
+						   instance=X,
+						   property=Y]),
+					     noInstancePropertyClass(X,Y,Instance,Schema),
+					     L). 
+
+localOrphanProperties(X,L,Instance,Schema) :- setof(json([error=noInstancePropertyClass,
+							  instance=X,
+							  property=Y]),
+						    noInstancePropertyClass(X,Y,Instance,Schema),
+						    L). 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -252,247 +260,133 @@ orphanProperties(L) :- setof(json([error=noInstancePropertyClass,
 
 % ranges have more possible targets as they can be literals. 
 :- rdf_meta typeCheckRange(r,t).
-typeCheckRange(T,literal(type(T,_))) :- baseType(T), !.
-typeCheckRange(_,literal(type(_,_))) :- !, false.
-typeCheckRange(xsd:string,literal(S)) :- atom(S).
-typeCheckRange(xsd:string,literal(lang(S,_))) :- atom(S), !.
-typeCheckRange(xsd:string, _) :- !, false.
-typeCheckRange(rdfs:'PlainLiteral',literal(S)) :- atom(S).
-typeCheckRange(rdfs:'PlainLiteral',literal(lang(S,_))) :- atom(S), !.
-typeCheckRange(rdfs:'PlainLiteral',_) :- !, false.
-typeCheckRange(rdfs:'Literal',literal(S)) :- atom(S). % is this valid?
-typeCheckRange(rdfs:'Literal',literal(lang(S,_))) :- atom(S), !. % is this valid?
-typeCheckRange(rdfs:'PlainLiteral',_) :- !, false.
-typeCheckRange(T,V) :- instanceHasClass(V,T), !.  % this probably also needs to check class constraints
-typeCheckRange(T,V) :- subClass(S,T), typeCheckRange(S,V).
+typeCheckRange(T,literal(type(T,_)),_,_) :- baseType(T), !.
+typeCheckRange(_,literal(type(_,_)),_,_) :- !, false.
+typeCheckRange(xsd:string,literal(S),_,_) :- atom(S).
+typeCheckRange(xsd:string,literal(lang(S,_)),_,_) :- atom(S), !.
+typeCheckRange(xsd:string,_,_,_) :- !, false.
+typeCheckRange(rdfs:'PlainLiteral',literal(S),_,_) :- atom(S).
+typeCheckRange(rdfs:'PlainLiteral',literal(lang(S,_)),_,_) :- atom(S), !.
+typeCheckRange(rdfs:'PlainLiteral',_,_,_) :- !, false.
+typeCheckRange(rdfs:'Literal',literal(S),_,_) :- atom(S). % is this valid?
+typeCheckRange(rdfs:'Literal',literal(lang(S,_)),_,_) :- atom(S), !. % is this valid?
+typeCheckRange(rdfs:'PlainLiteral',_,_,_) :- !, false.
+typeCheckRange(T,V,Instance,Schema) :-
+    instanceHasClass(V,T,Instance,Schema),
+    !.  % this probably also needs to check class constraints
+typeCheckRange(T,V,Instance,Schema) :- subClass(S,T,Schema), typeCheckRange(S,V,Instance,Schema).
 
 :- rdf_meta typeCheckDomain(r,t). 
-typeCheckDomain(T,V) :- instanceHasClass(V,T), !. % this probably also 
-                                                  % needs to check class constraints
+typeCheckDomain(T,V,Instance,Schema) :-
+    instanceHasClass(V,T,Instance,Schema),
+    !. % this probably also needs to check class constraints
 
-typeCheckDomain(T,V) :- subClass(S,T), typeCheckDomain(S,V).
+typeCheckDomain(T,V,Instance,Schema) :- subClass(S,T,Schema), typeCheckDomain(S,V,Instance,Schema).
 
-invalidInstanceRange(X, P, R, VA) :- 
+invalidInstanceRange(X, P, R, VA, Instance, Schema) :- 
     rdf_resource(X), 
-    instanceProperty(X,P),
-    range(P, R),
-    rdf(X,P,V, instance),
+    instanceProperty(X,P,Instance),
+    range(P,R,Schema),
+    rdf(X,P,V,Instance),
     render(V,VA),
-    \+ typeCheckRange(R,V).
+    \+ typeCheckRange(R,V,Instance,Schema).
 
-invalidInstanceRanges(L) :- setof(json([error=invalidInstanceRange,
-					instance=X, 
-					property=P, 
-					range=R, 
-					value=V]), invalidInstanceRange(X,P,R,V), L).
+invalidInstanceRanges(L,Instance,Schema) :-
+    setof(json([error=invalidInstanceRange,
+		instance=X, 
+		property=P, 
+		range=R, 
+		value=V]),
+	  invalidInstanceRange(X,P,R,V,Instance,Schema),
+	  L).
 
-invalidInstanceDomain(X, P, D) :- 
+localInvalidInstanceRanges(X,L,Instance,Schema) :-
+    setof(json([error=invalidInstanceRange,
+		instance=X, 
+		property=P, 
+		range=R, 
+		value=V]),
+	  invalidInstanceRange(X,P,R,V,Instance,Schema),
+	  L).
+
+invalidInstanceDomain(X, P, D, Instance, Schema) :- 
     rdf_resource(X),
-    instanceProperty(X,P), 
-    domain(P, D),
-    \+ typeCheckDomain(D,X).
+    instanceProperty(X,P,Instance), 
+    domain(P,D,Schema),
+    \+ typeCheckDomain(D,X,Instance,Schema).
 
-invalidInstanceDomains(L) :- setof(json([error=invalidInstanceDomain,
-					 instance=X, 
-					 property=P, 
-					 domain=D]), invalidInstanceDomain(X,P,D), L).
+invalidInstanceDomains(L,Instance,Schema) :-
+    setof(json([error=invalidInstanceDomain,
+		instance=X, 
+		property=P, 
+		domain=D]),
+	  invalidInstanceDomain(X,P,D,Instance,Schema),
+	  L).
+
+localInvalidInstanceDomains(X,L,Instance,Schema) :-
+    setof(json([error=invalidInstanceDomain,
+		instance=X, 
+		property=P, 
+		domain=D]),
+	  invalidInstanceDomain(X,P,D,Instance,Schema),
+	  L).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Blank nodes
 
-blankNode(X) :- (G = instance ; G = schema), rdf(X,_,_,G), rdf_is_bnode(X).
-blankNode(Y) :- (G = instance ; G = schema), rdf(_,Y,_,G), rdf_is_bnode(Y).
-blankNode(Z) :- (G = instance ; G = schema), rdf(_,_,Z,G), rdf_is_bnode(Z).
+schemaBlankNode(X,Schema) :- rdf(X,_,_,Schema), rdf_is_bnode(X).
+schemaBlankNode(Y,Schema) :- rdf(_,Y,_,Schema), rdf_is_bnode(Y).
+schemaBlankNode(Z,Schema) :- rdf(_,_,Z,Schema), rdf_is_bnode(Z).
 
-blankNodes(L) :- setof(json([error=blankNode,
-			     blank=X]), blankNode(X), L). 
+schemaBlankNodes(L,Schema) :- setof(json([error=schemaBlankNode,
+					  blank=X]),
+				    schemaBlankNode(X,Schema), L). 
+
+
+instanceBlankNode(X,Instance,_) :- rdf(X,_,_,Instance), rdf_is_bnode(X).
+instanceBlankNode(Y,Instance,_) :- rdf(_,Y,_,Instance), rdf_is_bnode(Y).
+instanceBlankNode(Z,Instance,_) :- rdf(_,_,Z,Instance), rdf_is_bnode(Z).
+
+instanceBlankNodes(L,Instance,Schema) :- setof(json([error=instanceBlankNode,
+						     blank=X]),
+					       instanceBlankNode(X,Instance,Schema), L). 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Labels 
 
-classHasLabel(X,Y) :- class(X), rdf(X, rdfs:label, Y, schema).
-classHasNoLabel(X) :- class(X), \+ rdf(X, rdfs:label, _, schema).
+classHasLabel(X,Y,Schema) :- class(X,Schema), rdf(X, rdfs:label, Y, Schema).
+classHasNoLabel(X,Schema) :- class(X,Schema), \+ rdf(X, rdfs:label, _, Schema).
 
-classHasOneLabel(X) :- classHasLabel(X,Label), bagof(label(Y,Label2), classHasLabel(Y,Label2), L), count(label(X,Label),L,1).
+classHasOneLabel(X,Schema) :- classHasLabel(X,Label,Schema), bagof(label(Y,Label2), classHasLabel(Y,Label2,Schema), L), count(label(X,Label),L,1).
 
-duplicateLabelClasses(X) :- 
-    classHasLabel(X,Label), 
+duplicateLabelClasses(X, Schema) :- 
+    classHasLabel(X,Label,Schema), 
     bagof(json([error=duplicateLabelClass, 
 		class=Y, 
-		label=Label2]), classHasLabel(Y,Label2), L), 
+		label=Label2]), classHasLabel(Y,Label2,Schema), L), 
     \+ count(label(X,Label),L,1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Instance checking 
 
-checkInstanceClass(X, json([error=orphanInstance, 
+checkInstanceClass(Instance,Schema,json([error=orphanInstance, 
 			    instance=X,
 			    class=C])) :- 
-    orphanInstance(X,C).
+    orphanInstance(X,C,Instance,Schema).
 
-checkPropertyDomain(X, json([error=invalidInstanceDomain, 
+checkPropertyDomain(Instance,Schema,json([error=invalidInstanceDomain, 
 			     instance=X, 
 			     property=P, 
 			     domain=D])) :- 
-    invalidInstanceDomain(X, P, D).
+    invalidInstanceDomain(X,P,D,Instance,Schema).
 
-checkPropertyRange(X, json([error=invalidInstanceRange, 
+checkPropertyRange(Instance,Schema,json([error=invalidInstanceRange, 
 			    instance=X, 
 			    property=P, 
 			    range=R, 
 			    value=V])) :- 
-    invalidInstanceRange(X, P, R, V).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Instance Data Generator
-
-:- use_module(library(assoc)). 
-
-% These can be elaborated as desired.
-:- rdf_meta baseTypeGenerator(r,t).
-baseTypeGenerator(xsd:string, literal(xsd:string,'This is a string')). 
-baseTypeGenerator(xsd:boolean, literal(xsd:boolean, 'true')). 
-baseTypeGenerator(xsd:decimal, literal(xsd:decimal, '10.5')). 
-baseTypeGenerator(xsd:integer, literal(xsd:integer, '1')). 
-baseTypeGenerator(xsd:double, literal(xsd:double, '13423432.2342343')). 
-baseTypeGenerator(xsd:float, literal(xsd:float, '134432.23443')).
-baseTypeGenerator(xsd:time, literal(xsd:time, '09:00:00')).
-baseTypeGenerator(xsd:dateTime, literal(xsd:dateTime, '2002-05-30T09:00:00')). 
-baseTypeGenerator(xsd:dateTimeStamp, literal(xsd:dateTimeStamp, '2004-04-12T13:20:00-05:00')).
-baseTypeGenerator(xsd:gYear, literal(xsd:gYear, '2000')). 
-baseTypeGenerator(xsd:gMonth, literal(xsd:gMonth, '05')). 
-baseTypeGenerator(xsd:gDay, literal(xsd:gDay, '01')). 
-baseTypeGenerator(xsd:gYearMonth, literal(xsd:gYearMonth, '2000-05')).
-baseTypeGenerator(xsd:gMonthDay, literal(xsd:gMonthDay, '05-01')).
-baseTypeGenerator(xsd:duration, literal(xsd:duration, '0001-01-01T01:01:01-01:01')). 
-baseTypeGenerator(xsd:yearMonthDuration, literal(xsd:yearMonthDuration, '01-01')). 
-baseTypeGenerator(xsd:dayTimeDuration, literal(xsd:dayTimeDuration, '01-01:01:01')). 
-baseTypeGenerator(xsd:byte, literal(xsd:byte, '12')). 
-baseTypeGenerator(xsd:short, literal(xsd:short, '12')). 
-baseTypeGenerator(xsd:int, literal(xsd:int, '12')). 
-baseTypeGenerator(xsd:long, literal(xsd:long, '12')). 
-baseTypeGenerator(xsd:unsignedByte, literal(xsd:unsignedByte, '12')). 
-baseTypeGenerator(xsd:unsignedInt, literal(xsd:unsignedInt, '12')). 
-baseTypeGenerator(xsd:unsignedLong, literal(xsd:unsignedLong, '12')). 
-baseTypeGenerator(xsd:positiveInteger, literal(xsd:positiveInteger, '12')). 
-baseTypeGenerator(xsd:nonNegativeInteger, literal(xsd:nonNegativeInteger, '12')). 
-baseTypeGenerator(xsd:negativeInteger, literal(xsd:negativeInteger, '-12')). 
-baseTypeGenerator(xsd:nonPositiveInteger, literal(xsd:nonPositiveInteger, '0')). 
-baseTypeGenerator(xsd:base64Binary, literal(xsd:base64Binary, 'ASDF')). 
-baseTypeGenerator(xsd:anyURI, literal(xsd:anyURI, 'http://example.com')). 
-baseTypeGenerator(xsd:language, literal(xsd:language, 'en')). 
-baseTypeGenerator(xsd:normalizedString, literal(xsd:normalizedString, 'Some string')). 
-baseTypeGenerator(xsd:token, literal(xsd:token, 'SomeToken')). 
-baseTypeGenerator(xsd:'NMTOKEN', literal(xsd:'NMTOKEN', 'ASDF')). 
-baseTypeGenerator(xsd:'Name', literal(xsd:'Name', 'myElement')). 
-baseTypeGenerator(xsd:'NCName', literal(xsd:'NCName', 'myElement')). 
-baseTypeGenerator(rdf:'PlainLiteral', literal('This is a literal')).
-
-:- rdf_meta (t,o).
-nameIt(R,Name) :-
-    uri_components(R, uri_components(_,_,Path,Res,Anchor)),
-    (ground(Anchor) *-> Anchor = BaseName
-     ; ground(Res) *-> Res = BaseName
-     ; ground(Path) *-> 
-	     path_end(Path,End),
-	     End = BaseName 
-     ; false),
-    atom_concat('instance-', BaseName, A),
-    gensym(A, Name). 
-
-classRoot(X) :- class(X), \+ subClassOf(X,_).
-
-classPropertyClass(C,P,Z) :- domain(P,C), range(P,Z), class(C), property(P), class(Z).
-%classPropertyClass(C,P,Z) :- subClassOf(C, K), classPropertyClass(K, P, Z). 
-%classPropertyClass(C,P,Z) :- subClassOf(Z, K), classPropertyClass(C, P, K).
-
-classPropertyLiteral(C,P,LiteralType) :- 
-    domain(P,C), range(P,LiteralType), class(C), property(P), 
-    baseType(LiteralType). 
-
-generateLinks(_,X,[rdf(X, 'http://www.w3.org/2000/01/rdf-schema#label', literal('Rubbish'))],_).
-generateLinks(C,X,[rdf(X,P,V)],_) :- 
-    classPropertyLiteral(C,P,LiteralType), 
-    baseTypeGenerator(LiteralType,V).
-generateLinks(C,X,[ rdf(Y,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',K), 
-		    rdf(X, P, Y) | O],S) :- 
-    classPropertyClass(C,P,K),
-    (get_assoc(K, S, Y) 
-     ->  O=[]  % remove cycles by reusing instances of encountered classes.
-     ; nameIt(K,Y),
-       put_assoc(K, S, Y, S2),
-       bagof(R, generateLinks(K, Y, R, S2), L), 
-       flatten(L, O)
-    ).
-generateLinks(C,X,[rdf(Y,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',K), 
-		   rdf(X, P, Y) | O],S) :- 
-    classPropertyClass(C,P,Super),
-    subClassOf(K, Super), 
-    class(K), % possible to have ill defined subclasses!
-    (get_assoc(K, S, Y)
-     ->  O=[]  % remove cycles by reusing instances of encountered classes.
-     ; nameIt(K,Y), 
-       put_assoc(K, S, Y, S2),
-       bagof(R, generateLinks(K, Y, R, S2), L), 
-       flatten(L, O)
-    ).
-
-generateClosed(C,[rdf(X,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',C)|O],S) :- 
-    class(C),
-    nameIt(C,X),
-    put_assoc(C, S, X, S2),
-    bagof(R, generateLinks(C, X, R, S2), L), 
-    flatten(L,O).
-generateClosed(C,[rdf(X,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',Sub)|O],S) :- 
-    subClassOf(Sub,C), %possible to have ill defined subclasses!
-    class(Sub),
-    nameIt(Sub,X),
-    put_assoc(Sub, S, X, S2),
-    bagof(R, generateLinks(Sub, X, R, S2), L), 
-    flatten(L,O).
-
-generate(L) :- empty_assoc(S), classRoot(C), generateClosed(C, L, S). 
-
-generateN(N,L) :- findnsols(N, L1, generate(L1), LL), flatten(LL, L).
-
-:- use_module(library(apply)).
-
-:- rdf_meta addToDB(t).
-addToDB(rdf(X,Y,Z)) :- rdf_assert(X,Y,Z,instance). 
-
-% N specifies number of times to decend the class hierarchy rather than 
-% the number of classes or triples, M is the number of solutions to look for 
-% in the class hierarchy.  This is convenient as consistency 
-% is a global property which can't easily be maintained without total traversal.  
-populateDB(0, _) :- !.
-populateDB(N, M) :- N2 is N-1, generateN(N,L), maplist(addToDB, L), populateDB(N2, M). 
-
-% sorry about the magic numbers...
-populateDB(N) :- HierarchyTravesals=30, populateDB(N, HierarchyTravesals). 
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Carefully Corrupting the DB.
-
-corrupt_class :- 
-    class(X), rdf_assert(X, rdf:type, owl:'Class', schema). % create duplicates
-
-corrupt_instance :- 
-    gensym('rubbish', X),
-    class(Y),
-    rdf_assert(X, rdf:type, Y), 
-    property(P), 
-    gensym('rubbish_target', Z),
-    rdf_assert(X, P, Z).
-
-% Corrupt the database.  This should excercise the reasoner. 
-corruptDB(0).
-corruptDB(N) :- 
-    M is N-1, 
-    corrupt_class,
-    corrupt_instance, 
-    corruptDB(M).
+    invalidInstanceRange(X, P, R, V,Instance,Schema).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Testing
@@ -528,36 +422,15 @@ demoDB(Schema,Instance,Options) :-
 
 %! test(+Test:atom) is det.
 %! test(?Test:atom) is nondet.
-test(classCycles).
-test(propertyCycles). 
-test(duplicateClasses).
-test(duplicateProperties).
-test(orphanSubClasses).
-test(orphanSubProperties). 
-test(orphanInstances).
-test(orphanProperties). 
-test(blankNodes).
-test(invalidRange). 
-test(invalidDomain). 
-test(invalidInstanceRanges).
-test(invalidInstanceDomains).
-
-%! testMessage(+Test:atom, -Message:atom) is det.
-%! testMessage(?Test:atom, -Message:atom) is det.
-% this package prefixing is a ridiculous hack to deal with metapredicate handling.
-testMessage(schemaRules:classCycles, 'Cycles in class hierarchy: ') :- !.
-testMessage(schemaRules:propertyCycles, 'Cycles in property hierarchy: ') :- !. 
-testMessage(schemaRules:duplicateClasses, 'Duplicate classes: ') :- !.
-testMessage(schemaRules:duplicateProperties, 'Duplicate properties: ') :- !.
-testMessage(schemaRules:orphanSubClasses, 'Orphaned subclasses: ') :- !.
-testMessage(schemaRules:orphanSubProperties, 'Orphaned subproperties: ') :- !.
-testMessage(schemaRules:orphanInstances, 'Orphaned instances: ') :- !.
-testMessage(schemaRules:orphanProperties, 'Missing class for properties: ') :- !. 
-testMessage(schemaRules:blankNodes, 'Blank Nodes found: ') :- !.
-testMessage(schemaRules:invalidRange, 'Property with non-unique or invalid range found: ') :- !. 
-testMessage(schemaRules:invalidDomain, 'Property with non-unique or invalid domain found: ') :- !. 
-testMessage(schemaRules:invalidInstanceRange, 'Instance data has incorrect type: ') :- !. 
-testMessage(_,'Unknown test').
+testSchema(classCycles).
+testSchema(propertyCycles). 
+testSchema(duplicateClasses).
+testSchema(duplicateProperties).
+testSchema(orphanSubClasses).
+testSchema(orphanSubProperties). 
+testSchema(schemaBlankNodes).
+testSchema(invalidRange). 
+testSchema(invalidDomain).
 
 :- rdf_meta runInsert(r,r,o,?).
 runInsert([XI,YI,ZI,G]) :-
@@ -583,36 +456,60 @@ runDelta(Delta) :-
 % {'tests' : [test1, test2, ... testn] ... 
 % }
 
-runSchemaUpdate(Delta, Pragma, Witnesses) :-
-
-    runDelta(Delta), % first perform update
-    test(Test),
+runSchemaTest(Pragma,W,Schema) :-
+    testSchema(Test),
     member(tests=TList,Pragma), 
     (all=TList 
      *-> true
-     ;  member(Test, TList)), 
-    findall(W, call(Test, W), Witnesses), 
+     ;  member(Test, TList)),
+    call(Test, W, Schema).
+
+runSchemaUpdate(Delta, Pragma, Witnesses) :-
+    runDelta(Delta), % first perform update
+    getKey(schema, Pragma, Schema, 'schema'),
+    % getKey(instance, Pragma, Instance, 'instance'),
+    findall(W, runSchemaTest(Pragma, W, Schema), Witnesses),
     (member(commit='true',Pragma),
+     Witnesses = [], 
      commit(instance), 
      commit(schema) 
      ; true).
 
+runSchemaValidation(Pragma,Witnesses) :-
+    getKey(schema, Pragma, Schema, 'schema'),
+    findall(W, runSchemaTest(Pragma, W, Schema), Witnesses).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DB Instance Checking. 
 
-instanceTest(schemaRules:checkInstanceClass).
-instanceTest(schemaRules:checkPropertyRange). 
-instanceTest(schemaRules:checkPropertyDomain). 
+testInstance(schemaRules:checkInstanceClass).
+testInstance(schemaRules:checkPropertyRange). 
+testInstance(schemaRules:checkPropertyDomain).
+testInstance(schemaRules:invalidInstanceRanges).
+testInstance(schemaRules:invalidInstanceDomains).
+testInstance(schemaRules:orphanInstances).
+testInstance(schemaRules:orphanProperties). 
+
+% Local testing for violation of specific known elements in update.
+testLocal(schemaRules:localCheckInstanceClass).
+testLocal(schemaRules:localCheckPropertyRange). 
+testLocal(schemaRules:localCheckPropertyDomain).
+testLocal(schemaRules:localInvalidInstanceRanges).
+testLocal(schemaRules:localInvalidInstanceDomains).
+testLocal(schemaRules:localOrphanInstances).
+testLocal(schemaRules:localOrphanProperties). 
 
 instanceValidator(Delta,Pragma,W) :-
     % obtain change information
+    getKey(schema, Pragma, Schema, 'schema'),
+    getKey(instance, Pragma, Instance, 'instance'), 
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
     
-    (member([X,_,_,instance], Inserts) 
-     ; member([X,_,_,instance], Deletes)),
+    (member([X,_,_,Instance], Inserts) 
+     ; member([X,_,_,Instance], Deletes)),
     
-    instanceTest(Test),
+    testLocal(Test),
 
     member(tests=TList,Pragma), 
 
@@ -620,28 +517,30 @@ instanceValidator(Delta,Pragma,W) :-
      *-> true
      ;  member(Test, TList)), 
 
-    call(Test, X, W).
+    call(Test, X, W, Instance, Schema).
 
 runInstanceUpdate(Delta, Pragma, Witnesses) :-
     % first perform update.
     runDelta(Delta),
-    findall(W, schemaRules:instanceValidator(Delta,Pragma, W), Witnesses),
+    findall(W, schemaRules:instanceValidator(Delta,Pragma,W), Witnesses),
     (member(commit='true',Pragma),
+     Witnesses = [],
      commit(instance)
      ; true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Full validation.
 fullInstanceValidator(Pragma,W) :- 
-    instanceTest(Test),
-    member(tests=TList,Pragma), 
+    testInstance(Test),
+    member(tests=TList,Pragma),
     (all=TList 
      *-> true
      ;  member(Test, TList)), 
-    
-    % rdf(X,Y,Z,instance),
-    rdf_resource(X), 
-    call(Test, X, W).
+
+    getKey(schema, Pragma, Schema, 'schema'),
+    getKey(instance, Pragma, Instance, 'instance'), 
+
+    call(Test,W,Instance,Schema).
 
 runFullValidation(Pragma,Witnesses) :- 
     runSchemaUpdate([inserts=[], deletes=[]],Pragma,SchemaWitnesses), 
@@ -650,68 +549,3 @@ runFullValidation(Pragma,Witnesses) :-
     findall(W, fullInstanceValidator(Pragma,W), InstanceWitnesses),
     
     append(SchemaWitnesses,InstanceWitnesses,Witnesses).
-		  
-
-:- meta_predicate validate(1,?).
-validate(Test, Stream) :- 
-    call(Test, C),
-    nl(Stream),	
-    testMessage(Test, Message),
-    write(Test),nl,
-    write(Stream, Message),
-    nl(Stream),	 
-    write(Stream, C), 
-    nl(Stream), 
-    fail.
-
-% validate will always fail, we want to iterate over choice points in T
-% to accumulate all I/O side effects.
-runValidate(Stream) :-
-    test(Test), 
-    validate(Test,Stream). 
-runValidate(_).
-
-:- meta_predicate runTest(1).
-runTest(Test) :- 
-    atom_concat('testData/', Test, TestBegin), 
-    atom_concat(TestBegin, '.ttl', TestFile), 
-    demoDB(TestFile, 'testData/instance.ttl'), 
-    call(Test, _), !, fail.
-runTest(Test) :-
-    atom_concat('Failed test ', Test, Fail),
-    write(Fail), nl, fail.
-
-% runTest will always fail, we want to iterate over choice points in T
-% to accumulate all I/O side effects.
-tests :- 
-    test(Test),
-    runTest(Test).
-tests.
-
-stringStream(Handle, Stream) :-
-    new_memory_file(Handle),
-    open_memory_file(Handle, write, Stream).
-
-streamString(Handle, String) :-
-    open_memory_file(Handle, read, R, [free_on_close(true)]),
-    read_string(R, _, String).
-
-loadAndCheckDB(Schema,Instance,Output) :-
-    % clear out the triple store.
-    % load rdf
-    rdf_load(Schema, [graph(schema)]),
-    rdf_load(Instance, [graph(instance)]),
-    checkDB(Output).
-
-checkDB(Output) :-
-    %% Setup output string stream 
-    stringStream(Handle,Stream),
-    write(Stream, '***** Starting check of DB *****'),
-    nl(Stream),	 
-    runValidate(Stream),
-    nl(Stream),
-    write(Stream, 'Finished checking DB!'),
-    close(Stream), 
-    streamString(Handle, Output).
-
-

@@ -22,7 +22,8 @@ http:location(dacura, '/dacura', []).
 :- http_handler(dacura(.), dacura_reply, []). 
 :- http_handler(dacura(schema), dacura_schema_update, []). 
 :- http_handler(dacura(instance), dacura_instance_update, []). 
-:- http_handler(dacura(validate), dacura_validate, []). 
+:- http_handler(dacura(validate), dacura_validate, []).
+:- http_handler(dacura(schema_validate), dacura_schema_validate, []). 
 
 :- use_module(library(http/json_convert)). 
 :- use_module(utils). 
@@ -45,7 +46,7 @@ dacura_schema_update(Request) :-
     current_output(Out), 
 
     % use pragma from client
-    getKey(pragma, Data, Pragma_String, '{"tests":"all"}'),
+    getKey(pragma, Data, Pragma_String, '{"tests": "all", "instance": "instance", "schema":"schema"}'),
     getKey(update, Data, Update_String, '[]'), 
 
     atom_json_term(Pragma_String, json(Pragma), []),
@@ -72,12 +73,12 @@ dacura_instance_update(Request) :-
     current_output(Out), 
 
     % use pragma from client
-    getKey(pragma, Data, Pragma_String, '{"tests": "all"}'),
+    getKey(pragma, Data, Pragma_String, '{"tests": "all", "instance": "instance", "schema":"schema"}'),
     getKey(update, Data, Update_String, '{"update" : []}'), 
     
     atom_json_term(Pragma_String, json(Pragma), []),
     atom_json_term(Update_String, json(Update), []),
-    
+
     getKey(inserts, Update, InsertsPreLiteral, []),
     getKey(deletes, Update, DeletesPreLiteral, []),
     convert_triples(InsertsPreLiteral, Inserts),
@@ -99,11 +100,47 @@ dacura_validate(Request) :-
     current_output(Out), 
 
     % use pragma from client
-    getKey(pragma, Data, Pragma_String, '{"tests":"all"}'),
-
+    getKey(pragma, Data, Pragma_String, '{"tests": "all", "instance": "instance", "schema":"schema"}'),
+    
     atom_json_term(Pragma_String, json(Pragma), []),
     
     rdf_transaction(runFullValidation(Pragma, Witnesses)),
 
     json_write(Out,Witnesses).
+
+
+dacura_schema_validate(Request) :- 
+    http_parameters(Request, [], [form_data(Data)]), 
+
+    format('Content-type: application/json~n~n'), 
+
+    % Get current stdout 
+    current_output(Out), 
+
+    % use pragma from client
+    getKey(pragma, Data, Pragma_String, '{"tests": "all", "schema":"schema"}'),
     
+    atom_json_term(Pragma_String, json(Pragma), []),
+    
+    rdf_transaction(runSchemaValidation(Pragma, Witnesses)),
+
+    json_write(Out,Witnesses).
+
+
+/*
+graphs_instance_schema(_Request) :-
+	findall(Count-Graph,
+		(   rdf_graph(Graph),
+		    graph_triples(Graph, Count)
+		),
+		Pairs),
+	keysort(Pairs, Sorted),
+	pairs_values(Sorted, UpCount),
+	reverse(UpCount, DownCount),
+	append(DownCount, [virtual(total)], Rows),
+	reply_html_page(cliopatria(default),
+			title('RDF Graphs'),
+			[ h1('Named graphs in the RDF store'),
+			  \graph_table(Rows, [])
+			]).
+*/
