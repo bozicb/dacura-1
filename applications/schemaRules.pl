@@ -4,7 +4,8 @@
 		       testSchema/1,
 		       runSchemaUpdate/3,
 		       runInstanceUpdate/3,
-		       runFullValidation/2]).
+		       runFullValidation/2,
+		       runSchemaValidation/2]).
 
 :- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
@@ -456,7 +457,7 @@ runDelta(Delta) :-
 % {'tests' : [test1, test2, ... testn] ... 
 % }
 
-runSchemaTest(Pragma,W,Schema) :-
+schemaTest(Pragma,W,Schema) :-
     testSchema(Test),
     member(tests=TList,Pragma), 
     (all=TList 
@@ -464,20 +465,9 @@ runSchemaTest(Pragma,W,Schema) :-
      ;  member(Test, TList)),
     call(Test, W, Schema).
 
-runSchemaUpdate(Delta, Pragma, Witnesses) :-
-    runDelta(Delta), % first perform update
-    getKey(schema, Pragma, Schema, 'schema'),
-    % getKey(instance, Pragma, Instance, 'instance'),
-    findall(W, runSchemaTest(Pragma, W, Schema), Witnesses),
-    (member(commit='true',Pragma),
-     Witnesses = [], 
-     commit(instance), 
-     commit(schema) 
-     ; true).
-
 runSchemaValidation(Pragma,Witnesses) :-
     getKey(schema, Pragma, Schema, 'schema'),
-    findall(W, runSchemaTest(Pragma, W, Schema), Witnesses).
+    findall(W, schemaRules:schemaTest(Pragma, W, Schema), Witnesses).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DB Instance Checking. 
@@ -505,7 +495,7 @@ instanceValidator(Delta,Pragma,W) :-
     getKey(instance, Pragma, Instance, 'instance'), 
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
-    
+
     (member([X,_,_,Instance], Inserts) 
      ; member([X,_,_,Instance], Deletes)),
     
@@ -528,8 +518,27 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
      commit(instance)
      ; true).
 
+
+runInstanceValidation(Delta,Pragma,Witnesses) :-
+    findall(W, schemaRules:instanceValidator(Delta,Pragma,W), Witnesses).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Full validation.
+% Instance / Schema Updates
+runSchemaUpdate(Delta, Pragma, Witnesses) :-
+    runDelta(Delta), % first perform update
+    % getKey(schema, Pragma, Schema, 'schema'),
+    % getKey(instance, Pragma, Instance, 'instance'),
+    runInstanceValidation(Delta,Pragma,Witnesses1),
+    runSchemaValidation(Pragma,Witnesses2), 
+    append(Witnesses1,Witnesses2,Witnesses), 
+    (member(commit='true',Pragma),
+     Witnesses = [], 
+     commit(instance), 
+     commit(schema) 
+     ; true).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Full validation (Instance / Schema)
 fullInstanceValidator(Pragma,W) :- 
     testInstance(Test),
     member(tests=TList,Pragma),
@@ -542,8 +551,10 @@ fullInstanceValidator(Pragma,W) :-
 
     call(Test,W,Instance,Schema).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Schema validation 
 runFullValidation(Pragma,Witnesses) :- 
-    runSchemaUpdate([inserts=[], deletes=[]],Pragma,SchemaWitnesses), 
+    runSchemaValidation(Pragma,SchemaWitnesses), 
     
     % schema updates can be empty and will check all, but instances can not!
     findall(W, fullInstanceValidator(Pragma,W), InstanceWitnesses),
