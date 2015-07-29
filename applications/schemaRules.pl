@@ -30,8 +30,16 @@ uniqueClass(Y,Schema) :- class(Y, Schema), bagof(X, class(X, Schema), L), count(
 
 notUniqueClass(Y, Schema) :- class(Y, Schema), bagof(X, class(X,Schema), L), \+ count(Y,L,1).
 
-duplicateClasses(L, Schema) :- setof(json([error=notUniqueClass, 
-					   class=Y]), notUniqueClass(Y, Schema), L).
+notUniqueClassJSON(JSON,Y,Schema) :-
+    notUniqueClass(Y,Schema),
+    atom_string(Y,Ystr),
+    string_concat(Ystr," is not a unique class.  Some existing class has this identifier.",
+		  Message),
+    JSON = json([error=notUniqueClass,
+		 class=Y,
+		 message=Message]). 
+
+duplicateClasses(L, Schema) :- setof(JSON, notUniqueClassJSON(JSON,_,Schema), L).
 
 % subclasses 
 
@@ -44,9 +52,19 @@ subClassOfClass(X,Y,Schema) :- subClassOf(X,Y,Schema), class(Y,Schema).
 
 notSubClassOfClass(X,Y,Schema) :- subClassOf(X,Y,Schema), \+ class(Y,Schema).
 
-orphanSubClasses(L,Schema) :- setof(json([error=notSubClassOfClass, 
-					  child=X, 
-					  parent=Y]), notSubClassOfClass(X,Y,Schema),L).
+notSubClassOfClassJSON(JSON,X,Y,Schema) :-
+    notSubClassOfClass(X,Y,Schema),
+    atom_string(X,Xstr),
+    atom_string(Y,Ystr),
+    string_concat(Xstr, " is not a subclass of some valid class named ", M),
+    string_concat(M,Ystr,M2),
+    string_concat(M2,".",Message),
+    JSON=json([error=notSubClassOfClass,
+	       child=X,
+	       parent=Y,
+	       message=Message]).
+    
+orphanSubClasses(L,Schema) :- setof(JSON, notSubClassOfClassJSON(JSON,_,_,Schema),L).
 
 % subclass cycles
 classCycleHelp(C,S,[],_) :- get_assoc(C,S,true), !.
@@ -55,9 +73,19 @@ classCycleHelp(C,S,[K|P],Schema) :- class(C,Schema), subClass(K,C,Schema),
 
 classCycle(C,P,Schema) :- empty_assoc(S), classCycleHelp(C,S,P,Schema). 
 
-classCycles(L,Schema) :- setof(json([error=classCycle, 
-				     class=CC,
-				     path=P]), classCycle(CC,P,Schema), L).
+classCycleJSON(JSON,CC,P,Schema) :-
+    classCycle(CC,P,Schema),
+    atom_string(CC,CCstr),
+    term_string(P,Pstr),
+    string_concat("Class ", CCstr, M1),
+    string_concat(M1, " has a class cycle with path: ", M2),
+    string_concat(M2,Pstr,Message),
+    JSON=json([error=classCycle,
+	       class=CC,
+	       path=P,
+	       message=Message]).
+
+classCycles(L,Schema) :- setof(JSON, classCycleJSON(JSON,_,_,Schema), L).
 
 % properties.
 :- rdf_meta property(r,o).
@@ -70,8 +98,15 @@ uniqueProperty(P,Schema) :- property(P,Schema), bagof(P2, property(P2,Schema), L
 
 notUniqueProperty(P,Schema) :- property(P,Schema), bagof(P2, property(P2,Schema), L), \+ count(P,L,1).
 
-duplicateProperties(L,Schema) :- setof(json([error=notUniqueProperty, 
-					     property=P]), notUniqueProperty(P,Schema), L).
+notUniquePropertyJSON(JSON,P,Schema) :-
+    notUniqueProperty(P,Schema),
+    atom_string(P,Pstr),
+    string_concat(Pstr, " is not a unique property name, there is already a property with this name.", Message),
+    JSON=json([error=notUniqueProperty,
+	       property=P,
+	       message=Message]). 
+    
+duplicateProperties(L,Schema) :- setof(JSON, notUniquePropertyJSON(JSON,_,Schema), L).
 
 % subProperties.
 
@@ -84,9 +119,19 @@ subPropertyOfProperty(X,Y,Schema) :- subPropertyOf(X,Y,Schema), property(Y,Schem
 
 notSubPropertyOfProperty(X,Y,Schema) :- subPropertyOf(X,Y,Schema), \+ property(Y,Schema).
 
-orphanSubProperties(L,Schema) :- setof(json([error=notSubPropertyOfProperty, 
-					     child=X,
-					     parent=Y]), notSubPropertyOfProperty(X,Y,Schema),L).
+notSubPropertyOfPropertyJSON(JSON,X,Y,Schema) :-
+    notSubPropertyOfProperty(X,Y,Schema),
+    atom_string(X,Xstr),
+    atom_string(Y,Ystr),
+    string_concat(Xstr," is not a sub-property of ",M1),
+    string_concat(M1,Ystr,M2),
+    string_concat(M2,".",Message),
+    JSON=json([error=notSubPropertyOfProperty,
+	       child=X,
+	       parent=Y,
+	       message=Message]).
+
+orphanSubProperties(L,Schema) :- setof(JSON, notSubPropertyOfPropertyJSON(JSON,_,_,Schema),L).
 
 % subProperty cycles 
 
@@ -95,9 +140,20 @@ propertyCycleHelp(P,S,[Q|T],Schema) :- property(P,Schema), subProperty(Q,P,Schem
 
 propertyCycle(P,PC,Schema) :- empty_assoc(S), propertyCycleHelp(P,S,PC,Schema). 
 
-propertyCycles(L,Schema) :- setof(json([error=propertyCycle, 
-					property=P,
-					path=PC]), propertyCycle(P,PC,Schema),L).
+propertyCycleJSON(JSON,P,PC,Schema) :-
+    propertyCycle(P,PC,Schema),
+    atom_string(P,Pstr),
+    term_string(PC,PCstr),
+    string_concat("Property Class ", Pstr, M1),
+    string_concat(M1, " has a property class cycle with path: ", M2),
+    string_concat(M2,PCstr,Message),
+    JSON=json([error=propertyClassCycle,
+	       property=P,
+	       path=PC,
+	       message=Message]).
+
+
+propertyCycles(L,Schema) :- setof(JSON, propertyCycleJSON(JSON,_,_,Schema),L).
 
 %%%% Core types	
 %% xsd:string	Character strings (but not all Unicode character strings)
@@ -235,7 +291,17 @@ orphanInstances(L,Instance,Schema) :- setof(json([error=orphanInstance,
 						  class=C]),orphanInstance(X,C,Instance,Schema),
 					    L).
 
-instanceProperty(X,P,Instance) :- instance(X,Instance), rdf(X, P, _,Instance), \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type'. 
+localOrphanInstances(X,L,Instance,Schema) :-
+    setof(json([error=orphanInstance,
+		instance=X, 
+		class=C]),
+	  orphanInstance(X,C,Instance,Schema),
+	  L).
+
+instanceProperty(X,P,Instance) :-
+    instance(X,Instance),
+    rdf(X, P, _,Instance),
+    \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type'. 
 
 instanceHasPropertyClass(X,P,Instance,Schema) :-
     instanceProperty(X,P,Instance),
@@ -261,6 +327,7 @@ localOrphanProperties(X,L,Instance,Schema) :- setof(json([error=noInstanceProper
 
 % ranges have more possible targets as they can be literals. 
 :- rdf_meta typeCheckRange(r,t).
+% TODO: Needs checking of the form of constant
 typeCheckRange(T,literal(type(T,_)),_,_) :- baseType(T), !.
 typeCheckRange(_,literal(type(_,_)),_,_) :- !, false.
 typeCheckRange(xsd:string,literal(S),_,_) :- atom(S).
@@ -371,12 +438,27 @@ duplicateLabelClasses(X, Schema) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Instance checking 
 
+localCheckInstanceHasClass(X,json([error=instanceHasNoClass, 
+				   instance=X]),Instance,_) :-
+    \+ instanceClass(X,_,Instance).
+
 checkInstanceClass(Instance,Schema,json([error=orphanInstance, 
-			    instance=X,
-			    class=C])) :- 
+					 instance=X,
+					 class=C])) :- 
+    orphanInstance(X,C,Instance,Schema).
+
+localCheckInstanceClass(X,json([error=orphanInstance, 
+				instance=X,
+				class=C]),Instance,Schema) :- 
     orphanInstance(X,C,Instance,Schema).
 
 checkPropertyDomain(Instance,Schema,json([error=invalidInstanceDomain, 
+			     instance=X, 
+			     property=P, 
+			     domain=D])) :- 
+    invalidInstanceDomain(X,P,D,Instance,Schema).
+
+localCheckPropertyDomain(X,Instance,Schema,json([error=invalidInstanceDomain, 
 			     instance=X, 
 			     property=P, 
 			     domain=D])) :- 
@@ -387,6 +469,13 @@ checkPropertyRange(Instance,Schema,json([error=invalidInstanceRange,
 			    property=P, 
 			    range=R, 
 			    value=V])) :- 
+    invalidInstanceRange(X, P, R, V,Instance,Schema).
+
+localCheckPropertyRange(X,json([error=invalidInstanceRange, 
+				instance=X, 
+				property=P, 
+				range=R, 
+				value=V]), Instance, Schema) :- 
     invalidInstanceRange(X, P, R, V,Instance,Schema).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -430,8 +519,9 @@ testSchema(duplicateProperties).
 testSchema(orphanSubClasses).
 testSchema(orphanSubProperties). 
 testSchema(schemaBlankNodes).
-testSchema(invalidRange). 
-testSchema(invalidDomain).
+% This needs to be fixed to deal with subsumption correctly
+%testSchema(invalidRange). 
+%testSchema(invalidDomain).
 
 :- rdf_meta runInsert(r,r,o,?).
 runInsert([XI,YI,ZI,G]) :-
@@ -450,8 +540,8 @@ runUpdate([XU,YU,ZU,Action,G]) :-
 runDelta(Delta) :-
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
-    maplist(schemaRules:runInsert,Inserts),
-    maplist(schemaRules:runDelete,Deletes) ; true.
+    maplist(schemaRules:runInsert,Inserts), !, % do not backtrack
+    maplist(schemaRules:runDelete,Deletes), !. % do not backtrack
     
 % The form of Pragma is as follows: 
 % {'tests' : [test1, test2, ... testn] ... 
@@ -481,6 +571,7 @@ testInstance(schemaRules:orphanInstances).
 testInstance(schemaRules:orphanProperties). 
 
 % Local testing for violation of specific known elements in update.
+testLocal(schemaRules:localCheckInstanceHasClass).
 testLocal(schemaRules:localCheckInstanceClass).
 testLocal(schemaRules:localCheckPropertyRange). 
 testLocal(schemaRules:localCheckPropertyDomain).
@@ -495,7 +586,7 @@ instanceValidator(Delta,Pragma,W) :-
     getKey(instance, Pragma, Instance, 'instance'), 
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
-
+    % write('Validating with instance: '), write(Instance), nl,
     (member([X,_,_,Instance], Inserts) 
      ; member([X,_,_,Instance], Deletes)),
     
@@ -513,10 +604,14 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
     % first perform update.
     runDelta(Delta),
     findall(W, schemaRules:instanceValidator(Delta,Pragma,W), Witnesses),
+    getKey(instance, Pragma, Instance, 'instance'), 
     (member(commit='true',Pragma),
+     % write('Commiting'),nl,
      Witnesses = [],
-     commit(instance)
-     ; true).
+     commit(Instance),
+     % write('Committed.'),nl
+     ; rollback(Instance)
+    ).
 
 
 runInstanceValidation(Delta,Pragma,Witnesses) :-
@@ -530,12 +625,15 @@ runSchemaUpdate(Delta, Pragma, Witnesses) :-
     % getKey(instance, Pragma, Instance, 'instance'),
     runInstanceValidation(Delta,Pragma,Witnesses1),
     runSchemaValidation(Pragma,Witnesses2), 
-    append(Witnesses1,Witnesses2,Witnesses), 
+    append(Witnesses1,Witnesses2,Witnesses),
+    getKey(schema, Pragma, Schema, 'schema'),
+    getKey(schema, Pragma, Instance, 'instance'),
     (member(commit='true',Pragma),
      Witnesses = [], 
-     commit(instance), 
-     commit(schema) 
-     ; true).
+     commit(Instance), 
+     commit(Schema) 
+     ; rollback(Instance),
+       rollback(Schema)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Full validation (Instance / Schema)
@@ -549,7 +647,7 @@ fullInstanceValidator(Pragma,W) :-
     getKey(schema, Pragma, Schema, 'schema'),
     getKey(instance, Pragma, Instance, 'instance'), 
 
-    call(Test,W,Instance,Schema).
+    call(Test, Instance, Schema, W).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Schema validation 

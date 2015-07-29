@@ -74,19 +74,33 @@ dacura_instance_update(Request) :-
 
     % use pragma from client
     getKey(pragma, Data, Pragma_String, '{"tests": "all", "instance": "instance", "schema":"schema"}'),
-    getKey(update, Data, Update_String, '{"update" : []}'), 
+    getKey(update, Data, Update_String, '{"update" : {}}'), 
     
     atom_json_term(Pragma_String, json(Pragma), []),
     atom_json_term(Update_String, json(Update), []),
-
+    %% nl,
+    %% write("Prgama: "),
+    %% write(Pragma), 
+    %% nl,
+    %% write("Update: "),
+    %% write(Update), 
+    %% nl,
     getKey(inserts, Update, InsertsPreLiteral, []),
     getKey(deletes, Update, DeletesPreLiteral, []),
     convert_triples(InsertsPreLiteral, Inserts),
     convert_triples(DeletesPreLiteral, Deletes),
-    
+    %% nl,
+    %% write("Inserts: "),
+    %% write(Inserts), 
+    %% nl,
+    %% write("Deletes: "),
+    %% write(Deletes), 
+    %% nl,
     Delta=[inserts=Inserts, deletes=Deletes],
 
-    rdf_transaction(runInstanceUpdate(Delta, Pragma, Witnesses)),
+    %rdf_transaction(
+    runInstanceUpdate(Delta, Pragma, Witnesses),
+		     %),
 
     json_write(Out,Witnesses).
 
@@ -97,7 +111,7 @@ dacura_validate(Request) :-
     format('Content-type: application/json~n~n'), 
 
     % Get current stdout 
-    current_output(Out), 
+    current_output(Out),
 
     % use pragma from client
     getKey(pragma, Data, Pragma_String, '{"tests": "all", "instance": "instance", "schema":"schema"}'),
