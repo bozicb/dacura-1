@@ -22,22 +22,32 @@ render(X,R) :-
     atom_string(R, Y).
 
 convert_triples([],[]). 
-convert_triples([X|T1], [Y|T2]) :-
-    literal_convert(X,Y),
+convert_triples([[X1,Y1,Z1,G]|T1], [[X2,Y2,Z2,G]|T2]) :-
+    literal_convert(X1,X2),
+    literal_convert(Y1,Y2),
+    literal_convert(Z1,Z2),
     convert_triples(T1,T2).
 
-literal_convert([],[]).
-literal_convert([X|T1], [Y|T2]) :-
-    (json(Assoc) = X *-> 
-		     (member(type=Type, Assoc) *->
-			    (member(data=Data, Assoc),
-			     Y = literal(type(Type,Data)))
-		      ; member(lang=Lang, Assoc) *->
-			      (member(data=Data, Assoc),
-			       Y = literal(lang(Data, Lang)))
-		      ; X = Y)
-     ; X = Y),
-    literal_convert(T1,T2).
+literal_convert(X, Y) :-
+    (json([A,B]) = X,
+     ((Y = literal(type(Type,Data)),
+       member(type=Type, [A,B]),
+       member(data=Data, [A,B]))
+      ; (Y = literal(lang(Data, Lang)),
+	 member(lang=Lang, [A,B]),
+	 member(data=Data, [A,B]))))
+    ; X = Y.
+%% 
+%%     (json(Assoc) = X *-> 
+%% 		     (member(type=Type, Assoc) *->
+%% 			    (member(data=Data, Assoc),
+%% 			     Y = literal(type(Type,Data)))
+%% 		      ; member(lang=Lang, Assoc) *->
+%% 			      (member(data=Data, Assoc),
+%% 			       Y = literal(lang(Data, Lang)))
+%% 		      ; X = Y)
+%%      ; X = Y),
+%%     literal_convert(T1,T2).
        
 	     
 

@@ -527,22 +527,20 @@ testSchema(schemaBlankNodes).
 runInsert([XI,YI,ZI,G]) :-
     transactionGraph:insert(XI,YI,ZI,G).
 
-%catch(transactionGraph:insert(XI,YI,ZI,G), Error, write_term(Error,[quoted(true)])). 
-
 :- rdf_meta runDelete(r,r,o,?).
 runDelete([XI,YI,ZD,G]) :-
     transactionGraph:delete(XI,YI,ZD,G).
 
 % obsolete
 runUpdate([XU,YU,ZU,Action,G]) :-
-    update(XU,YU,ZU,Action,G). 
+    transactionGraph:update(XU,YU,ZU,Action,G). 
 
-runDelta(Delta) :-
+runDelta(Delta,Witnesses) :-
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
-    maplist(schemaRules:runInsert,Inserts), !, % do not backtrack
-    maplist(schemaRules:runDelete,Deletes), !. % do not backtrack
-    
+    maplist(schemaRules:runInsert,Inserts), !, % do not backtrack!
+    exclude(schemaRules:runDelete,Deletes,Witnesses), !. % do not backtrack!
+
 % The form of Pragma is as follows: 
 % {'tests' : [test1, test2, ... testn] ... 
 % }
@@ -600,15 +598,24 @@ instanceValidator(Delta,Pragma,W) :-
 
     call(Test, X, W, Instance, Schema).
 
+failure_witness([],[]).
+failure_witness(DeleteFailures,DeleteWitness) :-
+    convert_triples(JSONDeleteFailures,DeleteFailures),
+    DeleteWitness = [json([error=deleteFailures,
+			   deletes=JSONDeleteFailures,
+			   message="Failed to delete all triples"])].
+
 runInstanceUpdate(Delta, Pragma, Witnesses) :-
     % first perform update.
-    runDelta(Delta),
-    findall(W, schemaRules:instanceValidator(Delta,Pragma,W), Witnesses),
+    runDelta(Delta,DeleteFailures),
+    failure_witness(DeleteFailures,DeleteWitness),
+    setof(W, schemaRules:instanceValidator(Delta,Pragma,W), ValidationWitnesses),
+    append(ValidationWitnesses, DeleteWitness, Witnesses),
     getKey(instance, Pragma, Instance, 'instance'), 
     (member(commit='true',Pragma),
      % write('Commiting'),nl,
      Witnesses = [],
-     commit(Instance),
+     commit(Instance)
      % write('Committed.'),nl
      ; rollback(Instance)
     ).
@@ -620,12 +627,15 @@ runInstanceValidation(Delta,Pragma,Witnesses) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Instance / Schema Updates
 runSchemaUpdate(Delta, Pragma, Witnesses) :-
-    runDelta(Delta), % first perform update
+    runDelta(Delta,DeleteFailures), % first perform update
+    failure_witness(DeleteFailures,DeleteWitness),
     % getKey(schema, Pragma, Schema, 'schema'),
     % getKey(instance, Pragma, Instance, 'instance'),
     runInstanceValidation(Delta,Pragma,Witnesses1),
-    runSchemaValidation(Pragma,Witnesses2), 
-    append(Witnesses1,Witnesses2,Witnesses),
+    runSchemaValidation(Pragma,Witnesses2),
+    append(Witnesses1,Witnesses2,Witnesses3),
+    append(Witnesses3,DeleteWitness, Witnesses),
+
     getKey(schema, Pragma, Schema, 'schema'),
     getKey(schema, Pragma, Instance, 'instance'),
     (member(commit='true',Pragma),

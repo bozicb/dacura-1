@@ -79,7 +79,7 @@ dacura_instance_update(Request) :-
     atom_json_term(Pragma_String, json(Pragma), []),
     atom_json_term(Update_String, json(Update), []),
     %% nl,
-    %% write("Prgama: "),
+    %% write("Pragma: "),
     %% write(Pragma), 
     %% nl,
     %% write("Update: "),
@@ -98,10 +98,9 @@ dacura_instance_update(Request) :-
     %% nl,
     Delta=[inserts=Inserts, deletes=Deletes],
 
-    %rdf_transaction(
+    % write(Delta), nl, write(Pragma), nl,  Witnesses=[],
     runInstanceUpdate(Delta, Pragma, Witnesses),
-		     %),
-
+    		  
     json_write(Out,Witnesses).
 
 
