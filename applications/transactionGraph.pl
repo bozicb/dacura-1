@@ -13,7 +13,7 @@ pos(instance, 'pos-instance') :- !.
 pos(A1,A2) :- atom_concat('pos-', A1, A2).
 
 :- rdf_meta rdf(r,r,o,?).
-rdf(X,Y,Z,G) :- pos(G,G2), rdf_db:rdf(X,Y,Z,G2).
+rdf(X,Y,Z,G) :- pos(G,G2), rdf_db:rdf(X,Y,Z,G2), !.
 rdf(X,Y,Z,G) :- neg(G,G2), rdf_db:rdf(X,Y,Z,G2), !, false.
 rdf(X,Y,Z,G) :- rdf_db:rdf(X,Y,Z,G).
 

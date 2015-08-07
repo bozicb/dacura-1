@@ -36,6 +36,32 @@ dacura_reply(_Request) :-
 		      p('Please read the information included in the dacura plugin documentation in order to interact with the RDF store and constraint manager')
 		    ]).
 
+dacura_schema_update(Request) :- 
+    http_parameters(Request, [], [form_data(Data)]), 
+    
+    format('Content-type: application/json~n~n'), 
+
+    % Get current stdout 
+    current_output(Out), 
+
+    % use pragma from client
+    getKey(pragma, Data, Pragma_String, '{"tests": "all", "instance": "instance", "schema":"schema"}'),
+    getKey(update, Data, Update_String, '[]'), 
+
+    atom_json_term(Pragma_String, json(Pragma), []),
+    atom_json_term(Update_String, json(Update), []),
+    
+    getKey(inserts, Update, InsertsPreLiteral, []),
+    getKey(deletes, Update, DeletesPreLiteral, []),
+    convert_triples(InsertsPreLiteral, Inserts),
+    convert_triples(DeletesPreLiteral, Deletes),
+
+    Delta=[inserts=Inserts, deletes=Deletes],
+
+    rdf_transaction(runSchemaUpdate(Delta, Pragma, Witnesses)),
+    	
+    json_write(Out,Witnesses).
+
 
 dacura_schema_update(Request) :- 
     http_parameters(Request, [], [form_data(Data)]), 

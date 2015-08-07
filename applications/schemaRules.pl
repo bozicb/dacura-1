@@ -24,11 +24,11 @@
 
 %classes
 class(X,Schema) :- rdf(X, rdf:type, rdfs:'Class', Schema).
-class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema). 
+class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema).
 
-uniqueClass(Y,Schema) :- class(Y, Schema), bagof(X, class(X, Schema), L), count(Y,L,1).
+uniqueClass(Y,Schema) :- class(Y, Schema), setof(X, class(X, Schema), L), count(Y,L,1).
 
-notUniqueClass(Y, Schema) :- class(Y, Schema), bagof(X, class(X,Schema), L), \+ count(Y,L,1).
+notUniqueClass(Y, Schema) :- class(Y, Schema), setof(X, class(X,Schema), L), \+ count(Y,L,1).
 
 notUniqueClassJSON(JSON,Y,Schema) :-
     notUniqueClass(Y,Schema),
@@ -93,6 +93,7 @@ property(rdfs:label,_).
 property(rdfs:comment,_).
 property(P,Schema) :- rdf(P,rdf:type,owl:'ObjectProperty',Schema).
 property(P,Schema) :- rdf(P,rdf:type,owl:'DataProperty',Schema).
+property(P,Schema) :- rdf(P,rdf:type,owl:'AnnotationProperty',Schema).
 
 uniqueProperty(P,Schema) :- property(P,Schema), bagof(P2, property(P2,Schema), L), count(P,L,1).
 
@@ -114,6 +115,9 @@ subProperty(X,Y,Schema) :- rdf(X,rdfs:subPropertyOf,Y,Schema).
 
 subPropertyOf(X,Y,Schema) :- rdf(X,rdfs:subPropertyOf,Y,Schema).
 subPropertyOf(X,Z,Schema) :- rdf(X,rdfs:subPropertyOf,Y,Schema), subPropertyOf(Y,Z,Schema). 
+
+subsumptionPropertiesOf(PC,PP,Schema) :- subPropertyOf(PC, PP, Schema).
+subsumptionPropertiesOf(PC,PC,Schema) :- property(PC,Schema).
 
 subPropertyOfProperty(X,Y,Schema) :- subPropertyOf(X,Y,Schema), property(Y,Schema).
 
@@ -248,10 +252,10 @@ type(X,Schema) :- class(X,Schema).
 % range / domain
 
 :- rdf_meta range(r,r,t,o).
-range(P,R,Schema) :- rdf(P, rdfs:range, R, Schema).
+range(P,R,Schema) :- rdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,schema).
 
 :- rdf_meta domain(r,r,t,o).
-domain(P,D,Schema) :- rdf(P, rdfs:domain, D, Schema). 
+domain(P,D,Schema) :- rdf(P2, rdfs:domain, D, Schema), subsumptionPropertiesOf(P,P2,schema).
 
 validRange(P,R,Schema) :- range(P,R,Schema), type(R,Schema).
 validDomain(P,D,Schema) :- domain(P,D,Schema), type(D,Schema).
@@ -436,10 +440,10 @@ duplicateLabelClasses(X, Schema) :-
     \+ count(label(X,Label),L,1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Instance checking 
+%%% More instance checking 
 
-localCheckInstanceHasClass(X,json([error=instanceHasNoClass, 
-				   instance=X]),Instance,_) :-
+localCheckInstanceHasClass(X,[json([error=instanceHasNoClass, 
+				    instance=X])],Instance,_) :-
     \+ instanceClass(X,_,Instance).
 
 checkInstanceClass(Instance,Schema,json([error=orphanInstance, 
@@ -447,9 +451,9 @@ checkInstanceClass(Instance,Schema,json([error=orphanInstance,
 					 class=C])) :- 
     orphanInstance(X,C,Instance,Schema).
 
-localCheckInstanceClass(X,json([error=orphanInstance, 
-				instance=X,
-				class=C]),Instance,Schema) :- 
+localCheckInstanceClass(X,[json([error=orphanInstance, 
+				 instance=X,
+				 class=C])],Instance,Schema) :- 
     orphanInstance(X,C,Instance,Schema).
 
 checkPropertyDomain(Instance,Schema,json([error=invalidInstanceDomain, 
@@ -458,11 +462,11 @@ checkPropertyDomain(Instance,Schema,json([error=invalidInstanceDomain,
 			     domain=D])) :- 
     invalidInstanceDomain(X,P,D,Instance,Schema).
 
-localCheckPropertyDomain(X,Instance,Schema,json([error=invalidInstanceDomain, 
-			     instance=X, 
-			     property=P, 
-			     domain=D])) :- 
-    invalidInstanceDomain(X,P,D,Instance,Schema).
+%% -- localCheckPropertyDomain(X,Instance,Schema,json([error=invalidInstanceDomain, 
+%% 			     instance=X, 
+%% 			     property=P, 
+%% 			     domain=D])) :- 
+%%     invalidInstanceDomain(X,P,D,Instance,Schema).
 
 checkPropertyRange(Instance,Schema,json([error=invalidInstanceRange, 
 			    instance=X, 
@@ -471,12 +475,12 @@ checkPropertyRange(Instance,Schema,json([error=invalidInstanceRange,
 			    value=V])) :- 
     invalidInstanceRange(X, P, R, V,Instance,Schema).
 
-localCheckPropertyRange(X,json([error=invalidInstanceRange, 
-				instance=X, 
-				property=P, 
-				range=R, 
-				value=V]), Instance, Schema) :- 
-    invalidInstanceRange(X, P, R, V,Instance,Schema).
+%% -- localCheckPropertyRange(X,json([error=invalidInstanceRange, 
+%% 				instance=X, 
+%% 				property=P, 
+%% 				range=R, 
+%% 				value=V]), Instance, Schema) :- 
+%%     invalidInstanceRange(X, P, R, V,Instance,Schema).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Testing
@@ -518,10 +522,10 @@ testSchema(duplicateClasses).
 testSchema(duplicateProperties).
 testSchema(orphanSubClasses).
 testSchema(orphanSubProperties). 
-testSchema(schemaBlankNodes).
+% testSchema(schemaBlankNodes).
 % This needs to be fixed to deal with subsumption correctly
-%testSchema(invalidRange). 
-%testSchema(invalidDomain).
+testSchema(invalidRange). 
+testSchema(invalidDomain).
 
 :- rdf_meta runInsert(r,r,o,?).
 runInsert([XI,YI,ZI,G]) :-
@@ -536,10 +540,10 @@ runUpdate([XU,YU,ZU,Action,G]) :-
     transactionGraph:update(XU,YU,ZU,Action,G). 
 
 runDelta(Delta,Witnesses) :-
-    getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
-    maplist(schemaRules:runInsert,Inserts), !, % do not backtrack!
-    exclude(schemaRules:runDelete,Deletes,Witnesses), !. % do not backtrack!
+    exclude(schemaRules:runDelete,Deletes,Witnesses), !, % do not backtrack!
+    getKey(inserts, Delta, Inserts, []),
+    maplist(schemaRules:runInsert,Inserts), !. % do not backtrack!
 
 % The form of Pragma is as follows: 
 % {'tests' : [test1, test2, ... testn] ... 
@@ -571,8 +575,8 @@ testInstance(schemaRules:orphanProperties).
 % Local testing for violation of specific known elements in update.
 testLocal(schemaRules:localCheckInstanceHasClass).
 testLocal(schemaRules:localCheckInstanceClass).
-testLocal(schemaRules:localCheckPropertyRange). 
-testLocal(schemaRules:localCheckPropertyDomain).
+%testLocal(schemaRules:localCheckPropertyRange). 
+%testLocal(schemaRules:localCheckPropertyDomain).
 testLocal(schemaRules:localInvalidInstanceRanges).
 testLocal(schemaRules:localInvalidInstanceDomains).
 testLocal(schemaRules:localOrphanInstances).
@@ -585,8 +589,9 @@ instanceValidator(Delta,Pragma,W) :-
     getKey(inserts, Delta, Inserts, []),
     getKey(deletes, Delta, Deletes, []),
     % write('Validating with instance: '), write(Instance), nl,
-    (member([X,_,_,Instance], Inserts) 
-     ; member([X,_,_,Instance], Deletes)),
+    (member([X,_,_,Instance], Inserts)
+     % don't check instance integrity on things that don't exist [rdf(X,_,_,Instance)]
+     ; member([X,_,_,Instance], Deletes), rdf(X,_,_,Instance)), 
     
     testLocal(Test),
 
@@ -609,17 +614,15 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
     % first perform update.
     runDelta(Delta,DeleteFailures),
     failure_witness(DeleteFailures,DeleteWitness),
-    setof(W, schemaRules:instanceValidator(Delta,Pragma,W), ValidationWitnesses),
+    (setof(W, schemaRules:instanceValidator(Delta,Pragma,W), ValidationWitnesses)
+     ; ValidationWitnesses=[]),
     append(ValidationWitnesses, DeleteWitness, Witnesses),
     getKey(instance, Pragma, Instance, 'instance'), 
     (member(commit='true',Pragma),
-     % write('Commiting'),nl,
      Witnesses = [],
-     commit(Instance)
-     % write('Committed.'),nl
+     commit(Instance)	   
      ; rollback(Instance)
     ).
-
 
 runInstanceValidation(Delta,Pragma,Witnesses) :-
     findall(W, schemaRules:instanceValidator(Delta,Pragma,W), Witnesses).

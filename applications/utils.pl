@@ -33,7 +33,7 @@ literal_convert(X, Y) :-
      ((Y = literal(type(Type,Data)),
        member(type=Type, [A,B]),
        member(data=Data, [A,B]))
-      ; (Y = literal(lang(Data, Lang)),
+      ; (Y = literal(lang(Lang,Data)),
 	 member(lang=Lang, [A,B]),
 	 member(data=Data, [A,B]))))
     ; X = Y.
