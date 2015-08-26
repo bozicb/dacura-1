@@ -25,6 +25,8 @@
 %classes
 class(X,Schema) :- rdf(X, rdf:type, rdfs:'Class', Schema).
 class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema).
+class(X,Schema) :- rdf(X, rdf:type, owl:'Restriction', Schema).
+class(X,Schema) :- rdf(X, rdf:type, rdfs:'Alt', Schema).
 
 uniqueClass(Y,Schema) :- class(Y, Schema), setof(X, class(X, Schema), L), count(Y,L,1).
 
@@ -605,7 +607,7 @@ instanceValidator(Delta,Pragma,W) :-
 
 failure_witness([],[]).
 failure_witness(DeleteFailures,DeleteWitness) :-
-    convert_triples(JSONDeleteFailures,DeleteFailures),
+    convert_quads(JSONDeleteFailures,DeleteFailures),
     DeleteWitness = [json([error=deleteFailures,
 			   deletes=JSONDeleteFailures,
 			   message="Failed to delete all triples"])].

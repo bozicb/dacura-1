@@ -1,4 +1,4 @@
-:- module(utils,[getKey/4, count/3, path_end/2, render/2, convert_triples/2, literal_convert/2]).
+:- module(utils,[getKey/4, count/3, path_end/2, render/2, convert_quads/2, json_to_literal/2]).
 
 % convenience functions
 getKey(Key,Assoc,Val,Default) :- 
@@ -21,11 +21,47 @@ render(X,R) :-
     write_to_chars(X, Y), 
     atom_string(R, Y).
 
+:- use_module(library(http/http_log)).
+
+json_to_literal(json([type=Type,data=Data]),literal(type(Type,Data))) :- !.
+json_to_literal(json([data=Data,type=Type]),literal(type(Type,Data))) :- !.
+json_to_literal(json([lang=Lang,data=Data]),literal(lang(Lang,Data))) :- !.
+json_to_literal(json([data=Data,lang=Lang]),literal(lang(Lang,Data))) :- !.
+json_to_literal(X,X).
+
+convert_quads([],[]).
+convert_quads([[X1,Y1,Z1,G]|T1], [[X2,Y2,Z2,G]|T2]) :-
+%    http_log_stream(Log),	
+%    write(Log,'['),
+%    write_canonical(Log,X1), write(Log,','),
+%    write_canonical(Log,Y1), write(Log,','),
+%    write_canonical(Log,Z1), write(Log,','),
+%    write(Log,G),
+%    write(Log,']\n'),
+    json_to_literal(X1,X2),
+    json_to_literal(Y1,Y2),
+    json_to_literal(Z1,Z2),
+%    write(Log,'['),
+%    write_canonical(Log,X2), write(Log,','),
+%    write_canonical(Log,Y2), write(Log,','),
+%    write_canonical(Log,Z2), write(Log,','),
+%    write(Log,G),
+%    write(Log,']\n'),
+    convert_quads(T1,T2).
+
+/*
 convert_triples([],[]). 
 convert_triples([[X1,Y1,Z1,G]|T1], [[X2,Y2,Z2,G]|T2]) :-
+    http_log_stream(Log),
     literal_convert(X1,X2),
     literal_convert(Y1,Y2),
     literal_convert(Z1,Z2),
+    write(Log,'['),
+    write(Log,X2), write(Log,','),
+    write(Log,Y2), write(Log,','),
+    write(Log,Z2), write(Log,','),
+    write(Log,G),
+    write(Log,']\n'),
     convert_triples(T1,T2).
 
 literal_convert(X, Y) :-
@@ -37,6 +73,8 @@ literal_convert(X, Y) :-
 	 member(lang=Lang, [A,B]),
 	 member(data=Data, [A,B]))))
     ; X = Y.
+*/
+
 %% 
 %%     (json(Assoc) = X *-> 
 %% 		     (member(type=Type, Assoc) *->
