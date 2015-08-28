@@ -1,4 +1,3 @@
-
 :- module(schemaRules,[testInstance/1,
 		       testSchema/1,
 		       runSchemaUpdate/3,
