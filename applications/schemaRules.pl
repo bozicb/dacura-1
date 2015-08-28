@@ -292,6 +292,7 @@ orphanInstance(X,C,Instance,Schema) :- instanceClass(X,C,Instance), \+ class(C,S
 
 noOrphans(Instance,Schema) :- \+ orphanInstance(_,_,Instance,Schema).
 
+%%% DDD Probably obsolete
 orphanInstances(L,Instance,Schema) :- setof(json([error=orphanInstance,
 						  instance=X, 
 						  class=C]),orphanInstance(X,C,Instance,Schema),
@@ -315,6 +316,7 @@ instanceHasPropertyClass(X,P,Instance,Schema) :-
 
 noInstancePropertyClass(X,P,Instance,Schema) :- instanceProperty(X,P,Instance), \+ property(P,Schema).
 
+%%% DDD Probably obsolete
 orphanProperties(L,Instance,Schema) :- setof(json([error=noInstancePropertyClass,
 						   instance=X,
 						   property=Y]),
@@ -347,7 +349,7 @@ typeCheckRange(rdfs:'Literal',literal(lang(S,_)),_,_) :- atom(S), !. % is this v
 typeCheckRange(rdfs:'PlainLiteral',_,_,_) :- !, false.
 typeCheckRange(T,V,Instance,Schema) :-
     instanceHasClass(V,T,Instance,Schema),
-    !.  % this probably also needs to check class constraints
+    !.  % this probably also needs to check class constraints and base type descriptions
 typeCheckRange(T,V,Instance,Schema) :- subClass(S,T,Schema), typeCheckRange(S,V,Instance,Schema).
 
 :- rdf_meta typeCheckDomain(r,t). 
@@ -365,6 +367,7 @@ invalidInstanceRange(X, P, R, VA, Instance, Schema) :-
     render(V,VA),
     \+ typeCheckRange(R,V,Instance,Schema).
 
+%%% DDD Probably obsolete??
 invalidInstanceRanges(L,Instance,Schema) :-
     setof(json([error=invalidInstanceRange,
 		instance=X, 
@@ -389,6 +392,7 @@ invalidInstanceDomain(X, P, D, Instance, Schema) :-
     domain(P,D,Schema),
     \+ typeCheckDomain(D,X,Instance,Schema).
 
+%%% DDD Probably obsolete??
 invalidInstanceDomains(L,Instance,Schema) :-
     setof(json([error=invalidInstanceDomain,
 		instance=X, 
@@ -405,6 +409,52 @@ localInvalidInstanceDomains(X,L,Instance,Schema) :-
 	  invalidInstanceDomain(X,P,D,Instance,Schema),
 	  L).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Check Cardinalities
+
+:- rdf_meta cardinalityRestriction(r,r,t).
+maxCardinalityRestriction(Restriction,Property,Cardinality,Schema) :-
+    rdf(Restriction,rdf:type,owl:'Restriction',Schema),
+    rdf(Restriction,owl:onProperty, Property, Schema),
+    rdf(Restriction,owl:maxCardinality, literal(type(xsd:nonNegativeInteger, CardStr))),
+    atom_number(CardStr,Cardinality).
+minCardinalityRestriction(Restriction,Property,Cardinality,Schema) :-
+    rdf(Restriction,rdf:type,owl:'Restriction',Schema),
+    rdf(Restriction,owl:onProperty, Property, Schema),
+    rdf(Restriction,owl:minCardinality, literal(type(xsd:nonNegativeInteger, CardStr))),
+    atom_number(CardStr,Cardinality).
+
+rangeCardinalityTooLarge(X,Range,Property,Size,Instance,Schema) :-
+    subClassOf(Range,Super,Schema),
+    maxCardinalityRestriction(Super,Property,Cardinality,Schema),
+    ( setof(Value, rdf(X,Property,Value,Instance), ListX) *-> ListX = List ; List = [] ),
+    length(List,Size),
+    Size > Cardinality.
+
+rangeCardinalityTooSmall(X,Range,Property,Size,Instance,Schema) :-
+    subClassOf(Range,Super,Schema),
+    minCardinalityRestriction(Super,Property,Cardinality,Schema),
+    ( setof(Value, rdf(X,Property,Value,Instance), ListX) *-> ListX = List ; List = [] ),
+    length(List,Size),
+    Size > Cardinality.
+
+localCardinalityTooLarge(X,L,Instance,Schema) :-
+    setof(json([error=cardinalityTooLarge,
+		instance=X,
+		range=Range,
+		size=Size,
+		property=Property]),
+	  rangeCardinalityTooLarge(X,Range,Property,Size,Instance,Schema),
+	  L).
+
+localCardinalityTooSmall(X,L,Instance,Schema) :-
+    setof(json([error=cardinalityTooLarge,
+		instance=X,
+		range=Range,
+		size=Size,
+		property=Property]),
+	  rangeCardinalityTooSmall(X,Range,Property,Size,Instance,Schema),
+	  L).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Blank nodes
@@ -429,6 +479,8 @@ instanceBlankNodes(L,Instance,Schema) :- setof(json([error=instanceBlankNode,
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Labels 
 
+%%% DDD this does not seem to be called...
+
 classHasLabel(X,Y,Schema) :- class(X,Schema), rdf(X, rdfs:label, Y, Schema).
 classHasNoLabel(X,Schema) :- class(X,Schema), \+ rdf(X, rdfs:label, _, Schema).
 
@@ -448,6 +500,7 @@ localCheckInstanceHasClass(X,[json([error=instanceHasNoClass,
 				    instance=X])],Instance,_) :-
     \+ instanceClass(X,_,Instance).
 
+%% DDD Probably obsolete?
 checkInstanceClass(Instance,Schema,json([error=orphanInstance, 
 					 instance=X,
 					 class=C])) :- 
@@ -458,18 +511,14 @@ localCheckInstanceClass(X,[json([error=orphanInstance,
 				 class=C])],Instance,Schema) :- 
     orphanInstance(X,C,Instance,Schema).
 
+%% DDD Probably obsolete?
 checkPropertyDomain(Instance,Schema,json([error=invalidInstanceDomain, 
 			     instance=X, 
 			     property=P, 
 			     domain=D])) :- 
     invalidInstanceDomain(X,P,D,Instance,Schema).
 
-%% -- localCheckPropertyDomain(X,Instance,Schema,json([error=invalidInstanceDomain, 
-%% 			     instance=X, 
-%% 			     property=P, 
-%% 			     domain=D])) :- 
-%%     invalidInstanceDomain(X,P,D,Instance,Schema).
-
+%% DDD Probably obsolete?
 checkPropertyRange(Instance,Schema,json([error=invalidInstanceRange, 
 			    instance=X, 
 			    property=P, 
@@ -477,18 +526,12 @@ checkPropertyRange(Instance,Schema,json([error=invalidInstanceRange,
 			    value=V])) :- 
     invalidInstanceRange(X, P, R, V,Instance,Schema).
 
-%% -- localCheckPropertyRange(X,json([error=invalidInstanceRange, 
-%% 				instance=X, 
-%% 				property=P, 
-%% 				range=R, 
-%% 				value=V]), Instance, Schema) :- 
-%%     invalidInstanceRange(X, P, R, V,Instance,Schema).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Testing
 
 %% Schema and Instance
-
+%% DDD Probably obsolete?
 demoDB :-  
     rdf_retractall(_, _, _, instance), 
     rdf_retractall(_, _, _, schema), 
@@ -566,6 +609,8 @@ runSchemaValidation(Pragma,Witnesses) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DB Instance Checking. 
 
+% must have argument list: (Instance,Schema,Json)
+% DDD Probably obsolte?
 testInstance(schemaRules:checkInstanceClass).
 testInstance(schemaRules:checkPropertyRange). 
 testInstance(schemaRules:checkPropertyDomain).
@@ -574,7 +619,8 @@ testInstance(schemaRules:invalidInstanceDomains).
 testInstance(schemaRules:orphanInstances).
 testInstance(schemaRules:orphanProperties). 
 
-% Local testing for violation of specific known elements in update.
+%% Local testing for violation of specific known elements in update.
+% must have argument list (X,Json,Instance,Schema) :-
 testLocal(schemaRules:localCheckInstanceHasClass).
 testLocal(schemaRules:localCheckInstanceClass).
 %testLocal(schemaRules:localCheckPropertyRange). 
@@ -583,6 +629,8 @@ testLocal(schemaRules:localInvalidInstanceRanges).
 testLocal(schemaRules:localInvalidInstanceDomains).
 testLocal(schemaRules:localOrphanInstances).
 testLocal(schemaRules:localOrphanProperties). 
+testLocal(schemaRules:localCardinalityTooLarge).
+testLocal(schemaRules:localCardinalityTooSmall).
 
 instanceValidator(Delta,Pragma,W) :-
     % obtain change information
@@ -616,8 +664,8 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
     % first perform update.
     runDelta(Delta,DeleteFailures),
     failure_witness(DeleteFailures,DeleteWitness),
-    (setof(W, schemaRules:instanceValidator(Delta,Pragma,W), ValidationWitnesses)
-     ; ValidationWitnesses=[]),
+    (setof(W, schemaRules:instanceValidator(Delta,Pragma,W), ValidationWitnessesX)
+	  *-> ValidationWitnesses = ValidationWitnessesX ; ValidationWitnesses=[]),
     append(ValidationWitnesses, DeleteWitness, Witnesses),
     getKey(instance, Pragma, Instance, 'instance'), 
     (member(commit='true',Pragma),
@@ -652,8 +700,10 @@ runSchemaUpdate(Delta, Pragma, Witnesses) :-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Full validation (Instance / Schema)
+% TODO: Change this to local instance validation with free parameters!!!
+% Maybe fixed?
 fullInstanceValidator(Pragma,W) :- 
-    testInstance(Test),
+    testLocal(Test),
     member(tests=TList,Pragma),
     (all=TList 
      *-> true
@@ -662,7 +712,7 @@ fullInstanceValidator(Pragma,W) :-
     getKey(schema, Pragma, Schema, 'schema'),
     getKey(instance, Pragma, Instance, 'instance'), 
 
-    call(Test, Instance, Schema, W).
+    call(Test, _, W, Instance, Schema).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Schema validation 
