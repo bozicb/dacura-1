@@ -1,6 +1,5 @@
 
-:- module(schemaRules,[demoDB/0, demoDB/1, demoDB/2, demoDB/3, 
-		       testInstance/1,
+:- module(schemaRules,[testInstance/1,
 		       testSchema/1,
 		       runSchemaUpdate/3,
 		       runInstanceUpdate/3,
@@ -22,12 +21,14 @@
 %%%%%%%%%%%%%%%%%%%%
 % Schema constraints
 
-%classes
+%%%%%%%%%%%%%%%%%%%%
+% classes
 class(X,Schema) :- rdf(X, rdf:type, rdfs:'Class', Schema).
 class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema).
 class(X,Schema) :- rdf(X, rdf:type, owl:'Restriction', Schema).
 class(X,Schema) :- rdf(X, rdf:type, rdfs:'Alt', Schema).
 
+% DDD not negation has no value?
 uniqueClass(Y,Schema) :- class(Y, Schema), setof(X, class(X, Schema), L), count(Y,L,1).
 
 notUniqueClass(Y, Schema) :- class(Y, Schema), setof(X, class(X,Schema), L), \+ count(Y,L,1).
@@ -50,6 +51,7 @@ subClass(X,Y, Schema) :- rdf(X, rdfs:subClassOf, Y, Schema).
 subClassOf(X,Y,Schema) :- rdf(X, rdfs:subClassOf, Y, Schema).
 subClassOf(X,Z,Schema) :- rdf(X, rdfs:subClassOf, Y, Schema), subClassOf(Y,Z, Schema).
 
+% DDD Not negation has no value?
 subClassOfClass(X,Y,Schema) :- subClassOf(X,Y,Schema), class(Y,Schema).
 
 notSubClassOfClass(X,Y,Schema) :- subClassOf(X,Y,Schema), \+ class(Y,Schema).
@@ -89,7 +91,9 @@ classCycleJSON(JSON,CC,P,Schema) :-
 
 classCycles(L,Schema) :- setof(JSON, classCycleJSON(JSON,_,_,Schema), L).
 
-% properties.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% properties.
+
 :- rdf_meta property(r,o).
 property(rdfs:label,_).
 property(rdfs:comment,_).
@@ -292,12 +296,6 @@ orphanInstance(X,C,Instance,Schema) :- instanceClass(X,C,Instance), \+ class(C,S
 
 noOrphans(Instance,Schema) :- \+ orphanInstance(_,_,Instance,Schema).
 
-%%% DDD Probably obsolete
-orphanInstances(L,Instance,Schema) :- setof(json([error=orphanInstance,
-						  instance=X, 
-						  class=C]),orphanInstance(X,C,Instance,Schema),
-					    L).
-
 localOrphanInstances(X,L,Instance,Schema) :-
     setof(json([error=orphanInstance,
 		instance=X, 
@@ -315,13 +313,6 @@ instanceHasPropertyClass(X,P,Instance,Schema) :-
     property(P,Schema).
 
 noInstancePropertyClass(X,P,Instance,Schema) :- instanceProperty(X,P,Instance), \+ property(P,Schema).
-
-%%% DDD Probably obsolete
-orphanProperties(L,Instance,Schema) :- setof(json([error=noInstancePropertyClass,
-						   instance=X,
-						   property=Y]),
-					     noInstancePropertyClass(X,Y,Instance,Schema),
-					     L). 
 
 localOrphanProperties(X,L,Instance,Schema) :- setof(json([error=noInstancePropertyClass,
 							  instance=X,
@@ -367,16 +358,6 @@ invalidInstanceRange(X, P, R, VA, Instance, Schema) :-
     render(V,VA),
     \+ typeCheckRange(R,V,Instance,Schema).
 
-%%% DDD Probably obsolete??
-invalidInstanceRanges(L,Instance,Schema) :-
-    setof(json([error=invalidInstanceRange,
-		instance=X, 
-		property=P, 
-		range=R, 
-		value=V]),
-	  invalidInstanceRange(X,P,R,V,Instance,Schema),
-	  L).
-
 localInvalidInstanceRanges(X,L,Instance,Schema) :-
     setof(json([error=invalidInstanceRange,
 		instance=X, 
@@ -391,15 +372,6 @@ invalidInstanceDomain(X, P, D, Instance, Schema) :-
     instanceProperty(X,P,Instance), 
     domain(P,D,Schema),
     \+ typeCheckDomain(D,X,Instance,Schema).
-
-%%% DDD Probably obsolete??
-invalidInstanceDomains(L,Instance,Schema) :-
-    setof(json([error=invalidInstanceDomain,
-		instance=X, 
-		property=P, 
-		domain=D]),
-	  invalidInstanceDomain(X,P,D,Instance,Schema),
-	  L).
 
 localInvalidInstanceDomains(X,L,Instance,Schema) :-
     setof(json([error=invalidInstanceDomain,
@@ -500,61 +472,10 @@ localCheckInstanceHasClass(X,[json([error=instanceHasNoClass,
 				    instance=X])],Instance,_) :-
     \+ instanceClass(X,_,Instance).
 
-%% DDD Probably obsolete?
-checkInstanceClass(Instance,Schema,json([error=orphanInstance, 
-					 instance=X,
-					 class=C])) :- 
-    orphanInstance(X,C,Instance,Schema).
-
 localCheckInstanceClass(X,[json([error=orphanInstance, 
 				 instance=X,
 				 class=C])],Instance,Schema) :- 
     orphanInstance(X,C,Instance,Schema).
-
-%% DDD Probably obsolete?
-checkPropertyDomain(Instance,Schema,json([error=invalidInstanceDomain, 
-			     instance=X, 
-			     property=P, 
-			     domain=D])) :- 
-    invalidInstanceDomain(X,P,D,Instance,Schema).
-
-%% DDD Probably obsolete?
-checkPropertyRange(Instance,Schema,json([error=invalidInstanceRange, 
-			    instance=X, 
-			    property=P, 
-			    range=R, 
-			    value=V])) :- 
-    invalidInstanceRange(X, P, R, V,Instance,Schema).
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Testing
-
-%% Schema and Instance
-%% DDD Probably obsolete?
-demoDB :-  
-    rdf_retractall(_, _, _, instance), 
-    rdf_retractall(_, _, _, schema), 
-    rdf_load('testData/plants.rdf', [graph(instance)]), 
-    rdf_load('testData/plant-onto.rdf', [graph(schema)]).
-
-demoDB(Schema) :- 
-    rdf_retractall(_, _, _, instance), 
-    rdf_retractall(_, _, _, schema), 
-    rdf_load(Schema, [graph(schema)]). 
-
-demoDB(Schema,Instance) :-
-    rdf_retractall(_, _, _, instance), 
-    rdf_retractall(_, _, _, schema), 
-    rdf_load(Schema, [graph(schema)]), 
-    rdf_load(Instance, [graph(instance)]).
-
-demoDB(Schema,Instance,Options) :- 
-    rdf_retractall(_, _, _, instance), 
-    rdf_retractall(_, _, _, schema), 
-    rdf_load(Schema, [graph(schema)|Options]),     
-    rdf_load(Instance, [graph(instance)|Options]). 
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DB Schema / Instance Checker
@@ -609,22 +530,10 @@ runSchemaValidation(Pragma,Witnesses) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DB Instance Checking. 
 
-% must have argument list: (Instance,Schema,Json)
-% DDD Probably obsolte?
-testInstance(schemaRules:checkInstanceClass).
-testInstance(schemaRules:checkPropertyRange). 
-testInstance(schemaRules:checkPropertyDomain).
-testInstance(schemaRules:invalidInstanceRanges).
-testInstance(schemaRules:invalidInstanceDomains).
-testInstance(schemaRules:orphanInstances).
-testInstance(schemaRules:orphanProperties). 
-
 %% Local testing for violation of specific known elements in update.
 % must have argument list (X,Json,Instance,Schema) :-
 testLocal(schemaRules:localCheckInstanceHasClass).
 testLocal(schemaRules:localCheckInstanceClass).
-%testLocal(schemaRules:localCheckPropertyRange). 
-%testLocal(schemaRules:localCheckPropertyDomain).
 testLocal(schemaRules:localInvalidInstanceRanges).
 testLocal(schemaRules:localInvalidInstanceDomains).
 testLocal(schemaRules:localOrphanInstances).
