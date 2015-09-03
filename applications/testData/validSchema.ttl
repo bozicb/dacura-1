@@ -1,0 +1,320 @@
+@prefix seshat:   <http://dacura.cs.tcd.ie/data/seshat#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#>. 
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix owl:  <http://www.w3.org/2002/07/owl#>.
+@prefix dc:   <http://purl.org/dc/elements/1.1/>.
+@prefix foaf: <http://xmlns.com/foaf/0.1/>.
+@prefix owltime: <http://www.w3.org/2006/time#>.
+
+# 	The Seshat Ontology
+
+# Some basic meta-data about the ontology
+
+<http://dacura.cs.tcd.ie/data/seshat#> a owl:Ontology;
+	dc:title "Seshat Global History Databank Ontology";
+	rdfs:comment "The Seshat Global History Databank ontology is designed to describe human societies throughout time.";	
+	rdfs:label "Seshat Global History Databank Ontology" ;
+	owl:versionInfo "0.1.05";	
+	dc:date "2015-07-29" ;
+	dc:creator "Rob Brennan" ;
+	dc:creator "Kevin Feeney" ;
+        dc:contributor "Odhran Gavin" ,
+                       "Gavin Mendel-Gleason" ,
+                       "Bojan Bozic" ,
+                       "Pieter Francois" ,
+                       "Harvey Whitehouse" ,
+                       "Peter Turchin" ;
+	dc:rights "This ontology is distributed under a Creative Commons Attribution License - http://creativecommons.org/licenses/by/3.0";
+	dc:description "This ontology will be used by the Evolution Institute and its partners to describe time series data collected about all human societies.".
+
+#Change Log
+# v0.1.01 first version
+# v0.1.01 removed rdfs:classes, fixed typo in UnitofSocialOrganisation, UnitofTerritory, datetime, removed owl:DataProperty typos, added owltime:TemporalEntity to represent durations via seshat:duration for seshat:TemporalEntities and seshat:propertyDuration for seshat:QualifiedValue. Deleted start, startDate, end, endDate.
+# v0.1.02 sghd -> seshat, USO -> SocialOrganisation, UT -> Territory
+# v0.1.03 changed ValuewithDuration classes to QualifiedValue classes
+# v0.1.04 Added new time representation, uncertainty model based on multiple inheritance
+# v0.1.05 Renamed socialorganisation->organisation and aligned with cliodynamics2015 seshat paper, SovereignOrganisation->PoliticalAuthority, deleted propertyDuration, added seshat:Entity
+
+# Main body 
+
+# Classes
+
+seshat:Entity a owl:Class;
+	rdfs:label "Seshat Entitity";
+	rdfs:comment "This is the super-class of all primary Seshat entities - the units of data collection. For example Organisations, Polities, Territories and NGAs.".
+# 1. Maybe this should be a prov entity too?
+# 2. Should it be defined as something in the ALIGNED sdo?
+
+# Social Organisation Classes
+
+seshat:TemporalEntity a owl:Class;
+	rdfs:subClassOf seshat:Entity;
+	rdfs:label "temporal entity";
+	rdfs:comment "An abstract concept describing anything that must have temporal bounds.".
+
+seshat:Organisation a owl:Class;
+	rdfs:subClassOf seshat:TemporalEntity;
+	owl:disjointWith seshat:Territory;
+	rdfs:label "Organisation";
+	rdfs:comment "An abstract concept describing human social groups.".
+# Question: how does this relate to dbpedia-owl:Agent, prov:Agent?
+
+seshat:PoliticalAuthority a owl:Class;
+	rdfs:subClassOf seshat:Organisation;
+	rdfs:label "Political organisation";
+	rdfs:comment "A derived concept covering human social groups with some self-governing powers.".
+
+seshat:SubPolity a owl:Class;
+	rdfs:subClassOf seshat:PoliticalAuthority;
+	rdfs:label "Sub-polity";
+	rdfs:comment "A derived concept covering human social groups that are temporal, geographic or political components of other human social groups.".
+
+seshat:Polity a owl:Class;
+	rdfs:subClassOf seshat:PoliticalAuthority;
+	rdfs:label "Polity";
+	rdfs:comment "A polity is defined as an independent political unit. Kinds of polities range from villages (local communities) through simple and complex chiefdoms to states and empires. A polity can be either centralized or not (e.g., organized as a confederation). What distinguishes a polity from other human groupings and organizations is that it is politically independent of any overarching authority; it possesses sovereignty. Polities are defined spatially by the area enclosed within a boundary on the world map. There may be more than one such areas. Polities are dynamical entities, and thus their geographical extent may change with time. Thus, typically each polity will be defined by a set of multiple boundaries, each for a specified period of time. For prehistoric periods and for NGAs populated by a multitude of small-scale polities we use a variant called quasi-polity.".
+
+seshat:QuasiPolity a owl:Class;
+	rdfs:subClassOf seshat:PoliticalAuthority;
+	rdfs:label "Quasi-polity";
+	rdfs:comment " The polity-based approach is not feasible for those periods when a NGA is divided up among a multitude of small-scale polities (e.g., independent villages or even many small chiefdoms). In this instance we use the concept of 'quasi-polity'. Similarly, for societies known only archaeologically we may not be able to establish the boundaries of polities, even approximately. Quasi-polity is defined as a cultural area with some degree of cultural (including linguistic, if known) homogeneity that is distinct from surrounding areas. For example, the Marshall Islands before German occupation had no overarching native or colonial authority (chiefs controlled various subsets of islands and atolls) and therefore it was not a polity. But it was a quasi-polity because of the significant cultural and linguistic uniformity. The idea is to collect data for the quasi-polity as a whole. This way we can integrate over (often patchy) data from different sites and different polities to estimate what a 'generic' polity was like. Accordingly, when coding, for example, social complexity variables, enter data not for the whole NGA but for a 'typical' polity in it. For example, when coding for a quasi-polity polity territory is not the area of the NGA as a whole, but the average or typical area of polities within the NGA.".
+
+seshat:InterestGroup a owl:Class;
+	rdfs:subClassOf seshat:Organisation;
+	rdfs:label "Interest group";
+	rdfs:comment "An Interest Group(IG) is a social group that pursues some common interest, so that its members are united by a common goal or goals. Polities and religious cults are also interest groups, but the IG category is broader. It also includes ethnic groups, professional associations, warrior bands, solidarity associations, mutual aid societies, firms and banks (including their premodern variants), etc. The IG is defined sociologically, not geographically. However, if desired, a geographic area, enclosed within a boundary, may be associated with it in the same way as with a polity or a  Religious System(RS). ".
+
+seshat:ReligiousSystem a owl:Class;
+	rdfs:subClassOf seshat:InterestGroup;
+	rdfs:label "Religious system";
+	rdfs:comment "Religious System (RS). This unit is defined in ways that are analogous to a polity, except it reflects religious, rather than political authority. Religious systems are dynamical and are typically defined by a set of dated boundaries. Unlike polities, religious systems often overlap with each other.".
+
+seshat:City a owl:Class;
+	rdfs:subClassOf seshat:Organisation;
+	rdfs:label "city";
+	rdfs:comment "Cities are represented by a single point on the map that doesn’t change with time. Although it is possible to reflect their spatial expansion dynamically, we chose not to do so in the current implementation.".
+
+# Geospatial Classes
+
+seshat:Territory a owl:Class;
+	rdfs:subClassOf seshat:Entity;
+	owl:disjointWith seshat:Organisation;
+	rdfs:label "Unit of territory";
+	rdfs:comment "An abstract concept describing geographical locations or areas.".
+# Question: How is this related to dbpedia_owl:Place or subclasses of it?
+
+seshat:CollectionOfTerritories a owl:Class;
+	rdfs:subClassOf seshat:Territory;
+	rdfs:label "collection of territories";
+	rdfs:comment "A container class for a group of units of territories.".
+# Note this does not appear in the Cliodynamics paper, leaving here for now
+
+seshat:FreeFormArea a owl:Class;
+	rdfs:subClassOf seshat:Territory;
+	rdfs:label "Free form area";
+	rdfs:comment "Freeform area (FA). This is an area enclosed within a boundary, or a dated set of boundaries. Basically, it is our method for treating an arbitrary shape on the map to which a historical expert wishes to tie certain values of coded variables. Examples include a province within an empire, something with a hole in it, or a ‘southeast corner of a region.".
+
+seshat:NaturalGeographicArea a owl:Class;
+	rdfs:subClassOf seshat:FreeFormArea;
+	rdfs:label "Natural geographic area";
+	rdfs:comment "Natural Geographic Region (NGA). This type of unit is defined spatially by the area enclosed within a boundary drawn on the world map. It does not change with time. Its rough spatial scale is 100 km × 100 km (+/- 50%). Examples: Latium, Upper Egypt, Middle Yellow River Valley. ".
+
+# Other classes
+
+seshat:Event a owl:Class;
+	rdfs:subClassOf seshat:TemporalEntity;
+	rdfs:label "event";
+	rdfs:comment "An abstract class describing historical events.".
+
+seshat:War a owl:Class;
+	rdfs:subClassOf seshat:Event;
+	rdfs:label "war";
+	rdfs:comment "A derived concept covering historical wars.".
+
+seshat:Battle a owl:Class;
+	rdfs:subClassOf seshat:Event;
+	rdfs:label "battle";
+	rdfs:comment "A derived concept covering historical battles.".
+
+# Basic Seshat variable handling
+
+seshat:Variable a owl:Class;
+	rdfs:label "variable";
+	rdfs:comment "A variable that is defined in the Seshat Codebook and recorded for a Seshat entity type. This is the base of all data collected for Seshat entities to faciliate the addition of temporal scoping, uncertainty, annotations and PROV recordsabout each individual variable value. It allows us to attach such meta-data and constraints to the edge connecting the entity and the value".
+
+seshat:value a owl:ObjectProperty;
+	rdfs:label "value";
+	rdfs:comment "The specified value of a variable when there is no uncertainty.";
+	rdfs:domain seshat:Variable.
+# no range is specified to keep it flexible
+
+seshat:hasVariable a owl:ObjectProperty;
+	rdfs:label "has variable";
+	rdfs:comment "The basic property relation for seshat datasets. Used to relate a seshat entity and its value with qualified information, e.g. uncertainty, temporal bounds, about the value. All seshat variable properties inherit from this property.";
+	rdfs:range seshat:Variable;
+	rdfs:domain seshat:Entity.
+
+seshat:hasGeneralVariable  a owl:ObjectProperty;
+	rdfs:label "has general variable";
+	rdfs:comment "This sub-property of seshat:hasVariable provides a way to define seshat:Organisation variables as members of the set of general variables.".
+
+seshat:hasSocialComplexityVariable  a owl:ObjectProperty;
+	rdfs:label "has social complexity variable";
+	rdfs:comment "This sub-property of seshat:hasVariable provides a way to define seshat:Organisation variables as members of the set of social complexity variables.".
+
+seshat:hasWarfareVariable  a owl:ObjectProperty;
+	rdfs:label "has warfare variable";
+	rdfs:comment "This sub-property of seshat:hasVariable provides a way to define seshat:Organisation variables as members of the set of warfare variables.".
+
+seshat:hasRitualVariable  a owl:ObjectProperty;
+	rdfs:label "has ritual variable";
+	rdfs:comment "This sub-property of seshat:hasVariable provides a way to define seshat:Organisation variables as members of the set of ritual variables.".
+# 1. Also need sub-props for Institutional, Legal, Equity, Social Mobility, religion, Well-being, Economy groups
+# 2. Do we need to also tag variables as "Main Variables" and "Other Variables"?
+
+# Temporal variable handling - Owltime re-use/simplification and extension for uncertain temporal bounds
+
+seshat:TemporalValue a owl:Class;
+	rdfs:label "temporal value";
+	rdfs:comment "An entity that has temporal constraints defined for the span of its validity.".
+
+seshat:Instant  a owl:Class;
+	rdfs:label "instant";
+	rdfs:comment "A temporal value that is true at a specific point in time.";
+	rdfs:subClassOf seshat:TemporalValue.
+
+seshat:Interval  a owl:Class;
+	rdfs:label "interval";
+	rdfs:comment "A temporal value that is true for an interval of time.";
+	rdfs:subClassOf seshat:TemporalValue.
+
+seshat:UncertainInstant a owl:Class;
+	rdfs:label "uncertain instant";
+	rdfs:comment "A temporal value that is true at a specific point in time but there are muliple possible values for the specific point in time.";
+	rdfs:subClassOf seshat:TemporalValue;
+	rdfs:subClassOf seshat:Instant.
+
+# Should we have a seshat:UncertainTemporalValue class to wrap the 2 types of uncertain values? Leave out for now.
+
+seshat:UncertainInterval a owl:Class;
+	rdfs:label "uncertain interval";
+	rdfs:comment "A time interval that supports uncertainty at one or both ends of the interval.";
+	rdfs:subClassOf seshat:TemporalValue;
+	rdfs:subClassOf seshat:Interval.
+
+seshat:hasUncertainBeginning 	a       owl:ObjectProperty ;
+	rdfs:label "has uncertain beginning";
+	rdfs:comment "A property to specify an uncertain start time of an interval. May have multiple instances.";
+	rdfs:domain seshat:UncertainInterval;
+	rdfs:range owltime:DateTimeDescription .
+
+seshat:hasUncertainEnd 	a       owl:ObjectProperty ;
+	rdfs:label "has uncertain end";
+	rdfs:comment "A property to specify an uncertain end time of an interval. May have multiple instances.";
+	rdfs:domain seshat:UncertainInterval;
+	rdfs:range owltime:DateTimeDescription .
+
+seshat:hasBeginning a owl:ObjectProperty;
+	rdfs:label "has beginning";
+	rdfs:comment "Used to specify the start time of an interval.";
+	rdfs:domain seshat:Interval;
+	rdfs:range owltime:DateTimeDescription .
+
+seshat:hasEnd a owl:ObjectProperty;
+	rdfs:label "has end";
+	rdfs:comment "Used to specify the end time of an interval.";
+	rdfs:domain seshat:Interval;
+	rdfs:range owltime:DateTimeDescription .
+
+seshat:inUncertainDateTime a owl:ObjectProperty;
+	rdfs:label "in uncertain date time";
+	rdfs:comment "Used to associate an uncertain point in time with a uncertain instant. An UncertainInstant may have multiple instances of this property.";
+	rdfs:domain seshat:UncertainInstant;
+	rdfs:range owltime:DateTimeDescription.
+
+seshat:inDateTime a owl:ObjectProperty;
+	rdfs:label "in datetime";
+	rdfs:comment "Used to specify the point in time of an instant.";
+	rdfs:domain seshat:Instant;
+	rdfs:range owltime:DateTimeDescription.
+
+# Uncertainty handling for variables
+
+seshat:UncertainValue  a owl:Class;
+	rdfs:label "uncertain value";
+	rdfs:comment "A value that has uncertainty associated with it, either in terms of a set of possible values or a specified range.".
+	
+seshat:Range a owl:Class;
+	rdfs:label "range";
+	rdfs:comment "An uncertain value that has a specified range.";
+	rdfs:subClassOf seshat:UncertainValue.
+
+seshat:Set a owl:Class;
+	rdfs:label "set";
+	rdfs:comment "An uncertain value that has a specified set of possible values.";
+	rdfs:subClassOf seshat:UncertainValue.
+
+seshat:maxValue a owl:ObjectProperty;
+	rdfs:label "max value" ;
+	rdfs:domain seshat:Range;
+	rdfs:comment "A property used to specify the maximum value of a seshat:Range." .
+
+seshat:minValue a owl:ObjectProperty;
+	rdfs:label "min value" ;
+	rdfs:domain seshat:Range;
+	rdfs:comment "A property used to specify the minimum value of a seshat:Range." .
+
+seshat:setValue a owl:ObjectProperty;
+	rdfs:label "set value" ;
+	rdfs:domain seshat:Set;
+	rdfs:comment "A property used to specify a value of a seshat:Set. May occur multiple times." .
+
+# Basic Seshat Properties
+
+seshat:existsWithin a owl:ObjectProperty;
+	rdfs:subPropertyOf seshat:hasVariable;
+	rdfs:label "Exists within" ;
+	rdfs:domain seshat:Organisation;
+	rdfs:range  seshat:Territory;
+	rdfs:comment "A property used to associate an Organisation with a Territory that it somehow occupies." .
+
+seshat:controls a owl:ObjectProperty;
+	rdfs:subPropertyOf seshat:existsWithin;
+	rdfs:label "Controls" ;
+	rdfs:comment "A property that indicates control of a Territory by an Organisation" .
+
+seshat:duration a owl:ObjectProperty;
+	rdfs:label "Duration" ;
+	rdfs:subPropertyOf seshat:hasGeneralVariable;
+	rdfs:domain seshat:TemporalEntity;
+	rdfs:range  seshat:TemporalValue;
+	rdfs:comment "A property used to define the temporal bounds of a seshat:TemporalEntity. For example, corresponds to the Duration for a Polity from the Seshat codebook." .
+
+# Experimental/draft properties
+
+seshat:relatedToOrganisation a owl:ObjectProperty;
+	rdfs:label "relatedToOrganisation" ;
+	rdfs:domain seshat:Organisation;
+	rdfs:range  seshat:Organisation;
+	rdfs:comment "A property used to associate an Organisation with another Organisation." .
+
+seshat:associatedWithEvent a owl:ObjectProperty;
+	rdfs:label "associated with event" ;
+	rdfs:domain seshat:Organisation;
+	rdfs:range  seshat:Event;
+	rdfs:comment "A property used to associate a Organisation with an Event." .
+
+seshat:includesTerritory a owl:ObjectProperty;
+	rdfs:label "includes unit of territory" ;
+	rdfs:domain seshat:CollectionOfTerritories;
+	rdfs:range  seshat:Territory;
+	rdfs:comment "A property used to associate a CollectionOfTerritories with its consituent UnitsOfTerritory." .
+
+seshat:polygon a owl:DatatypeProperty;
+	rdfs:label "polygon" ;
+	rdfs:domain seshat:Territory;
+	rdfs:range  xsd:string;
+	rdfs:comment "A property used to define the geographical polygon encompassed by a Territory." .
+
+

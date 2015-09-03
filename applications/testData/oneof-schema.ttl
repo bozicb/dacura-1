@@ -1,0 +1,84 @@
+@base             <owlTime> .
+@prefix timezone: <http://www.w3.org/2006/timezone#> .
+@prefix     time: <http://www.w3.org/2006/time#> .
+@prefix      owl: <http://www.w3.org/2002/07/owl#> .
+@prefix      xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix     rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix      rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# Named toplevel resources (68)
+
+<http://www.w3.org/2006/time>
+	a owl:Ontology ;
+	rdfs:comment "      An OWL Ontology of Time (OWL-Time).\n    " ;
+	rdfs:seeAlso <http://www.w3.org/TR/owl-time> .
+
+time:DateTimeDescription
+	a owl:Class ;
+	rdfs:subClassOf [ a owl:Restriction ;
+			  owl:cardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:unitType
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:year
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:month
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:week
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:day
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:dayOfWeek
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:dayOfYear
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:hour
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:minute
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:second
+			] ,
+			[ a owl:Restriction ;
+			  owl:maxCardinality "1"^^xsd:nonNegativeInteger ;
+			  owl:onProperty time:timeZone
+			] .
+			
+time:DayOfWeek
+	a owl:Class ;
+	owl:oneOf ( time:Sunday
+		    time:Monday
+		    time:Tuesday
+		    time:Wednesday
+		    time:Thursday
+		    time:Friday
+		    time:Saturday
+		  ) .
+
+
+time:Monday
+	a time:DayOfWeek .
+
+time:Sunday
+	a time:DayOfWeek .
+
+time:dayOfWeek
+	a owl:ObjectProperty ;
+	rdfs:domain time:DateTimeDescription ;
+	rdfs:range time:DayOfWeek .

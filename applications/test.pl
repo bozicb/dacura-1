@@ -12,7 +12,7 @@
 %%% tests(Pragma,WitnessOfFailureExpected) 
 tests([instance=instance, schema=blankNodes, tests=[schemaBlankNodes]],
       [[json([=(error,schemaBlankNode),=(blank,'__blankNodes1')])]]).
-tests([instance=instance, schema=checkInstanceDomains, tests=[localInvalidInstanceDomains]],
+tests([instance=validSchema, instance=checkInstanceDomains, tests=[localInvalidInstanceDomains]],
      false).
 tests([instance=instance, schema=checkInstanceRanges, tests=[localInvalidInstanceRanges]],
      false).

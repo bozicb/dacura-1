@@ -519,7 +519,8 @@ schemaTest(Pragma,W,Schema) :-
     (all=TList 
      *-> true
      ;  member(Test, TList)),
-    call(Test, W, Schema), !. % Fail early for these special tests (cycles!!)    
+    call(Test, W, Schema),
+    (W = [] *-> true ; fail, !). % Fail early for these special tests (cycles!!)    
 schemaTest(Pragma,W,Schema) :-
     testSchema(Test),
     member(tests=TList,Pragma), 
