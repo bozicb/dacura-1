@@ -17,6 +17,7 @@
 :- use_module(library(semweb/rdf_label)).
 :- use_module(library(semweb/rdf_persistency)).
 :- use_module(schemaRules).
+:- use_module(test).
 
 % Logging / Turn off for production
 :- use_module(library(http/http_log)).
@@ -27,7 +28,8 @@ http:location(dacura, '/dacura', []).
 :- http_handler(dacura(schema), dacura_schema_update, []). 
 :- http_handler(dacura(instance), dacura_instance_update, []). 
 :- http_handler(dacura(validate), dacura_validate, []).
-:- http_handler(dacura(schema_validate), dacura_schema_validate, []). 
+:- http_handler(dacura(schema_validate), dacura_schema_validate, []).
+:- http_handler(dacura(test), dacura_test, []). 
 
 :- use_module(library(http/json_convert)). 
 :- use_module(utils). 
@@ -170,6 +172,19 @@ dacura_schema_validate(Request) :-
     
     rdf_transaction(runSchemaValidation(Pragma, Witnesses)),
 
+    json_write(Out,Witnesses).
+
+
+dacura_test(_Request) :- 
+    %http_parameters(Request, [], [form_data(Data)]), 
+
+    format('Content-type: application/json~n~n'), 
+
+    % Get current stdout 
+    current_output(Out), 
+
+    % Get current stdout
+    runTests(Witnesses),
     json_write(Out,Witnesses).
 
 

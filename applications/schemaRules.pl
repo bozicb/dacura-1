@@ -1,5 +1,4 @@
-:- module(schemaRules,[testInstance/1,
-		       testSchema/1,
+:- module(schemaRules,[testSchema/1,
 		       runSchemaUpdate/3,
 		       runInstanceUpdate/3,
 		       runFullValidation/2,
@@ -479,15 +478,15 @@ localCheckInstanceClass(X,[json([error=orphanInstance,
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DB Schema / Instance Checker
 
-%! test(+Test:atom) is det.
-%! test(?Test:atom) is nondet.
-testSchema(classCycles).
-testSchema(propertyCycles). 
+% These must pass for us to continue otherwise we'll get infinite computations. 
+preTestSchema(classCycles).
+preTestSchema(propertyCycles).
+
 testSchema(duplicateClasses).
 testSchema(duplicateProperties).
 testSchema(orphanSubClasses).
 testSchema(orphanSubProperties). 
-% testSchema(schemaBlankNodes).
+testSchema(schemaBlankNodes).
 % This needs to be fixed to deal with subsumption correctly
 testSchema(invalidRange). 
 testSchema(invalidDomain).
@@ -514,6 +513,13 @@ runDelta(Delta,Witnesses) :-
 % {'tests' : [test1, test2, ... testn] ... 
 % }
 
+schemaTest(Pragma,W,Schema) :-
+    preTestSchema(Test),
+    member(tests=TList,Pragma), 
+    (all=TList 
+     *-> true
+     ;  member(Test, TList)),
+    call(Test, W, Schema), !. % Fail early for these special tests (cycles!!)    
 schemaTest(Pragma,W,Schema) :-
     testSchema(Test),
     member(tests=TList,Pragma), 
