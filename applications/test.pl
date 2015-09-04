@@ -12,32 +12,32 @@
 %%% tests(Pragma,WitnessOfFailureExpected) 
 tests([instance=instance, schema=blankNodes, tests=[schemaBlankNodes]],
       [[json([=(error,schemaBlankNode),=(blank,'__blankNodes1')])]]).
-tests([instance=validSchema, instance=checkInstanceDomains, tests=[localInvalidInstanceDomains]],
-     false).
-tests([instance=instance, schema=checkInstanceRanges, tests=[localInvalidInstanceRanges]],
-     false).
+tests([instance=checkInstanceDomains, schema=validSchema, tests=[localInvalidInstanceDomains]],
+      [[json([error=invalidInstanceDomain, instance='http://dacura.cs.tcd.ie/data/seshat#thing', property='http://dacura.cs.tcd.ie/data/seshat#includesTerritory', domain='http://dacura.cs.tcd.ie/data/seshat#CollectionOfTerritories'])]]).
+tests([instance=checkInstanceRanges, schema=validSchema, tests=[localInvalidInstanceRanges]],
+      [[json([error=invalidInstanceRange, instance='http://dacura.cs.tcd.ie/data/seshat#thingy', property='http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory', range='http://dacura.cs.tcd.ie/data/seshat#QualifiedTerritory', value='literal(type(http://www.w3.org/2001/XMLSchema#integer,10))'])]]).
 tests([instance=instance, schema=classCycles, tests=[classCycles]],
       [[json([=(error,classCycle),=(class,'http://dacura.cs.tcd.ie/data/seshat#TemporalEntity'),=(path,['http://dacura.cs.tcd.ie/data/seshat#UnitOfSocialOrganisation','http://dacura.cs.tcd.ie/data/seshat#TemporalEntity']),=(message,"Class http://dacura.cs.tcd.ie/data/seshat#TemporalEntity has a class cycle with path: ['http://dacura.cs.tcd.ie/data/seshat#UnitOfSocialOrganisation','http://dacura.cs.tcd.ie/data/seshat#TemporalEntity']")])]]).
 tests([instance=instance, schema=duplicateClasses, tests=[duplicateClasses]],
-     false).
+      []). % Don't see how to fix this at the moment due to enforced cardinality of 0/1
 tests([instance=instance, schema=invalidDomain, tests=[invalidDomain]],
-     false).
+      [[json([=(error,notUniqueValidDomain),=(property,'http://dacura.cs.tcd.ie/data/seshat#end'),=(domain,'http://dacura.cs.tcd.ie/data/seshat#bad')]),json([=(error,notUniqueValidDomain),=(property,'http://dacura.cs.tcd.ie/data/seshat#start'),=(domain,'http://dacura.cs.tcd.ie/data/seshat#ValueWithDuration')]),json([=(error,notUniqueValidDomain),=(property,'http://dacura.cs.tcd.ie/data/seshat#start'),=(domain,'http://www.w3.org/2001/XMLSchema#dateTime')])]]).
 tests([instance=instance, schema=invalidRange, tests=[invalidRange]],
-     false).
+      [[json([=(error,notUniqueValidRange),=(property,'http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory'),=(range,'http://dacura.cs.tcd.ie/data/seshat#bad')]),json([=(error,notUniqueValidRange),=(property,'http://dacura.cs.tcd.ie/data/seshat#controlsTerritory'),=(range,'http://dacura.cs.tcd.ie/data/seshat#bad')]),json([=(error,notUniqueValidRange),=(property,'http://dacura.cs.tcd.ie/data/seshat#start'),=(range,'http://www.w3.org/2001/XMLSchema#dateTime')])]]).
 % Probably need an addition here for cardinality too small.
 tests([instance='oneof-instance', schema='oneof-schema', tests=[localCardinalityTooLarge]],
-     false).
+      [[json([=(error,cardinalityTooLarge),=(instance,'http://example.org/time#me'),=(range,'http://www.w3.org/2006/time#DateTimeDescription'),=(size,2),=(property,'http://www.w3.org/2006/time#dayOfWeek')])]]).
 %tests([instance=instance, schema=orphanDomains, tests=all]).
 tests([instance=instance, schema=orphanInstances, tests=[localOrphanInstances]],
-     false).
+      [[json([=(error,orphanInstance),=(instance,'http://dacura.cs.tcd.ie/data/seshat#thing'),=(class,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey')]),json([=(error,orphanInstance),=(instance,'http://dacura.cs.tcd.ie/data/seshat#typedThingy1'),=(class,'http://dacura.cs.tcd.ie/data/seshat#typedThingy')])]]).
 tests([instance=instance, schema=orphanProperties, tests=[localOrphanProperties]],
-     false).
+      [[json([=(error,noInstancePropertyClass),=(instance,'http://dacura.cs.tcd.ie/data/seshat#thing'),=(property,'http://dacura.cs.tcd.ie/data/seshat#someproperty')]),json([=(error,noInstancePropertyClass),=(instance,'http://dacura.cs.tcd.ie/data/seshat#typedThingy1'),=(property,'http://dacura.cs.tcd.ie/data/seshat#floatTyped')]),json([=(error,noInstancePropertyClass),=(instance,'http://dacura.cs.tcd.ie/data/seshat#typedThingy1'),=(property,'http://dacura.cs.tcd.ie/data/seshat#integerTyepd')]),json([=(error,noInstancePropertyClass),=(instance,'http://dacura.cs.tcd.ie/data/seshat#typedThingy1'),=(property,'http://dacura.cs.tcd.ie/data/seshat#integerTyped')]),json([=(error,noInstancePropertyClass),=(instance,'http://dacura.cs.tcd.ie/data/seshat#typedThingy1'),=(property,'http://dacura.cs.tcd.ie/data/seshat#stringTyped')])]]).
 %tests([instance=instance, schema=orphanRanges, tests=all]).
 %tests([instance=instance, schema=orphanSubProperties, tests=all]).
 tests([instance=instance, schema=propertyCycles, tests=[propertyCycles]],
       [[json([=(error,propertyClassCycle),=(property,'http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory'),=(path,['http://dacura.cs.tcd.ie/data/seshat#controlsTerritory','http://dacura.cs.tcd.ie/data/seshat#relatedToRubbish','http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory']),=(message,"Property Class http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory has a property class cycle with path: ['http://dacura.cs.tcd.ie/data/seshat#controlsTerritory','http://dacura.cs.tcd.ie/data/seshat#relatedToRubbish','http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory']")])]]).
 tests([instance=instance, schema=typeCheck, tests=[localCheckInstanceClass]],
-     false).
+      [[json([=(error,orphanInstance),=(instance,'http://dacura.cs.tcd.ie/data/seshat#thing'),=(class,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey')])]]).
 
 fname(Name,FName) :-
     file_search_path(cliopatria,Path),
@@ -54,12 +54,14 @@ runTest(Fail) :-
     nl,write(Pragma),nl,
     member(schema=Schema, Pragma),
     member(instance=Instance, Pragma),
+    member(tests=Tests, Pragma),
     loadDB(Schema,Instance),
     runFullValidation(Pragma,Witnesses),
     (ExpectedWitnesses = Witnesses
      *-> Fail = []
-     ; Fail = [witnesses=Witnesses, expected=ExpectedWitnesses,test=Schema],
-       nl,write(Schema),nl,
+     ; Fail = [witnesses=Witnesses, expected=ExpectedWitnesses,test=Tests],
+       nl,write(Fail),nl,
+       nl,write(Tests),nl,
        nl,write_canonical(Witnesses),nl),
     unloadDB(Schema,Instance). 
     

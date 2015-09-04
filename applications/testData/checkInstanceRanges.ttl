@@ -7,5 +7,5 @@
 @prefix foaf: <http://xmlns.com/foaf/0.1/>.
 
 sghd:thingy a sghd:SocialOrganisation; 
-	   sghd:associatedWithTerritory 10.
+	    sghd:associatedWithTerritory 10.
 

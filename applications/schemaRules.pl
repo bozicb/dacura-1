@@ -256,10 +256,10 @@ type(X,Schema) :- class(X,Schema).
 % range / domain
 
 :- rdf_meta range(r,r,t,o).
-range(P,R,Schema) :- rdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,schema).
+range(P,R,Schema) :- rdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,Schema).
 
 :- rdf_meta domain(r,r,t,o).
-domain(P,D,Schema) :- rdf(P2, rdfs:domain, D, Schema), subsumptionPropertiesOf(P,P2,schema).
+domain(P,D,Schema) :- rdf(P2, rdfs:domain, D, Schema), subsumptionPropertiesOf(P,P2,Schema).
 
 validRange(P,R,Schema) :- range(P,R,Schema), type(R,Schema).
 validDomain(P,D,Schema) :- domain(P,D,Schema), type(D,Schema).
@@ -520,7 +520,7 @@ schemaTest(Pragma,W,Schema) :-
      *-> true
      ;  member(Test, TList)),
     call(Test, W, Schema),
-    (W = [] *-> true ; fail, !). % Fail early for these special tests (cycles!!)    
+    (W = [] *-> fail ; true, !). % Fail early for these special tests (cycles!!)    
 schemaTest(Pragma,W,Schema) :-
     testSchema(Test),
     member(tests=TList,Pragma), 
@@ -538,14 +538,14 @@ runSchemaValidation(Pragma,Witnesses) :-
 
 %% Local testing for violation of specific known elements in update.
 % must have argument list (X,Json,Instance,Schema) :-
-testLocal(schemaRules:localCheckInstanceHasClass).
-testLocal(schemaRules:localCheckInstanceClass).
-testLocal(schemaRules:localInvalidInstanceRanges).
-testLocal(schemaRules:localInvalidInstanceDomains).
-testLocal(schemaRules:localOrphanInstances).
-testLocal(schemaRules:localOrphanProperties). 
-testLocal(schemaRules:localCardinalityTooLarge).
-testLocal(schemaRules:localCardinalityTooSmall).
+testLocal(localCheckInstanceHasClass).
+testLocal(localCheckInstanceClass).
+testLocal(localInvalidInstanceRanges).
+testLocal(localInvalidInstanceDomains).
+testLocal(localOrphanInstances).
+testLocal(localOrphanProperties). 
+testLocal(localCardinalityTooLarge).
+testLocal(localCardinalityTooSmall).
 
 instanceValidator(Delta,Pragma,W) :-
     % obtain change information

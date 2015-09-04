@@ -39,8 +39,8 @@ sghd:TemporalEntity a owl:Class;
 	rdfs:comment "An abstract concept describing anything that must have temporal bounds.".
 
 sghd:TemporalEntity a owl:Class;
-	rdfs:label "temporal entity";
-	rdfs:comment "An abstract concept describing anything that must have temporal bounds.".
+	rdfs:label "another label";
+	rdfs:comment "Some other info".
 
 sghd:UnitOfSocialOrganisation a owl:Class;
 	rdfs:subClassOf sghd:TemporalEntity;
