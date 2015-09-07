@@ -24,7 +24,9 @@
 class(X,Schema) :- rdf(X, rdf:type, rdfs:'Class', Schema).
 class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema).
 class(X,Schema) :- rdf(X, rdf:type, owl:'Restriction', Schema).
-class(X,Schema) :- rdf(X, rdf:type, rdfs:'Alt', Schema).
+class(X,Schema) :- rdf(X, rdf:type, rdf:'Alt', Schema).
+class(X,Schema) :- rdf(X, rdf:type, rdf:'Bag', Schema).
+% Skos concept? for class as well?
 
 % DDD not negation has no value?
 uniqueClass(Y,Schema) :- class(Y, Schema), setof(X, class(X, Schema), L), count(Y,L,1).

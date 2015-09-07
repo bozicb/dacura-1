@@ -47,7 +47,8 @@ fname(Name,FName) :-
 
 runTests(Witnesses) :-
     % fill with the witness of failure. 
-    bagof(Witness, runTest(Witness), Witnesses).
+    bagof(Witness, runTest(Witness), LL),
+    flatten(LL,Witnesses).
 
 runTest(Fail) :- 
     tests(Pragma, ExpectedWitnesses),

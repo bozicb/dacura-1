@@ -152,7 +152,7 @@ dacura_validate(Request) :-
     
     atom_json_term(Pragma_String, json(Pragma), []),
     
-    rdf_transaction(runFullValidation(Pragma, Witnesses)),
+    runFullValidation(Pragma, Witnesses),
 
     json_write(Out,Witnesses).
 
@@ -170,7 +170,9 @@ dacura_schema_validate(Request) :-
     
     atom_json_term(Pragma_String, json(Pragma), []),
     
-    rdf_transaction(runSchemaValidation(Pragma, Witnesses)),
+    %rdf_transaction(
+    runSchemaValidation(Pragma, Witnesses),
+		       %),
 
     json_write(Out,Witnesses).
 
