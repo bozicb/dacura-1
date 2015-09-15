@@ -1,0 +1,125 @@
+@prefix : <http://www.w3.org/2015/rdfcio#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+
+<http://www.w3.org/2015/rdfcio#>
+	a :Ontology;
+	rdfs:comment "RDF-style collections defined in OWL" ;
+	dc:contributor "Gavin Mendel-Gleason" ;
+	dc:date "2015-09-09" ;
+	dc:rights "This ontology is distributed under a Creative Commons Attribution License - http://creativecommons.org/licenses/by/3.0" ;
+	dc:title "RDF collections in OWL" ;
+	rdfs:label "RDF collections in OWL" ;
+	owl:versionInfo "0.0.01" .
+
+:Value a owl:Class ;
+       rdfs:label "value" ;
+       rdfs:comment "The object which boxes values" .
+
+:value a owl:FunctionalProperty ,
+         owl:DataProperty ;
+       rdfs:label "value" ;
+       rdfs:comment """A property which has a domain of a boxed value, convenient because we want 
+                       lists to be quite generic over datatypes and objects, hence 
+                       datatypes must be boxed.""" ;
+       rdfs:domain :Value .
+
+:Container a owl:Class ;
+	rdfs:label "Container" ;
+	rdfs:comment "The class of RDF containers." .
+
+:ContainerMembershipProperty a owl:ObjectProperty ;
+	rdfs:label "ContainerMembershipProperty" ;
+	rdfs:comment """The property class of container membership properties
+                     	all of which are sub-properties of 'member'.""" .
+
+:member a owl:ObjectProperty ;
+	rdfs:label "member" ;
+	rdfs:comment "A member of the subject resource." ;
+	rdfs:domain :Container ;
+	rdfs:range owl:Thing .
+
+:Seq a owl:Class ;
+     rdfs:subClassOf :Container ;
+     rdfs:label "Seq" ;
+     rdfs:comment "The class of ordered containers.".
+
+
+:sequentialMember a owl:FunctionalProperty ,
+                    owl:ObjectProperty ;
+		  rdfs:subPropertyOf :member ;
+		  rdfs:label """Property class for membership associated with an 
+		  	     	integer index.""" ;
+		  rdfs:domain :Seq ;
+		  rdfs:range owl:Thing .
+
+:sequentialMember a owl:Class ;
+		  rdfs:label """Pun with the sequential member property to add 
+		  	     	indices.""" . 	
+
+:index a owl:FunctionalProperty ,
+         owl:DataProperty ;
+       rdfs:domain :sequentialMember ;
+       rdfs:range xsd:nonNegativeInteger ;
+       rdfs:label "The concrete index of a sequantial member property." .
+
+:Bag a owl:Class ;
+     rdfs:subClassOf :Container ;
+     rdfs:label "Bag" ;
+     rdfs:comment "The class of unordered containers.".
+
+:Alt a owl:Class ;
+     rdfs:subClassOf :Container ;
+     rdfs:label "Alt" ;
+     rdfs:comment "The class of containers of alternatives." .
+
+:List a owl:Class;
+      rdfs:subClassOf :Container ;
+      rdfs:label "List" ;
+      rdfs:comment "The class of ordered containers." .
+
+:first a owl:FunctionalProperty ,
+         owl:ObjectProperty;
+       rdfs:subPropertyOf :member ;
+       rdfs:label "first" ;
+       rdfs:comment "The first element of a list." ;
+       rdfs:domain :List .
+
+:isFollowedBy a owl:ObjectProperty , 
+ 	        owl:transitiveProperty ;
+	      rdfs:domain :List ;
+              rdfs:range :List .
+
+:isFollowedByFirst a owl:ObjectProperty ;
+		   owl:propertyChain (:isFollowedBy :first) ;
+                   rdfs:subPropertyOf :member .
+
+:rest a owl:FunctionalProperty ,
+        owl:ObjectProperty ;
+      rdfs:subPropertyOf :isFollowedBy ;
+      rdfs:label "rest" ;
+      rdfs:comment "The tail, or rest, of the list." .
+
+:firstRestriction a owl:Restriction ;
+		  owl:onProperty :first ;
+		  owl:someValuesFrom owl:Thing .
+
+:noFirst a owl:Class ;
+	 owl:complementOf :firstRestriction .
+
+:isFollowedByRestriction a owl:Restriction ;
+			 owl:onProperty :isFollowedBy ;
+			 owl:someValuesFrom owl:Thing .
+
+:nothingFollows a owl:Class ;
+		owl:complementOf :isFollowedByRestriction .
+
+:nil a owl:Class;
+     rdfs:subClassOf 
+        [ a owl:Class;
+          owl:intersectionOf  (:List :noFirst) ],
+        [ a owl:Class;
+	  owl:intersectionOf  (:List :nothingFollows) ] .

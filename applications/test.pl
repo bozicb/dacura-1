@@ -38,6 +38,8 @@ tests([instance=instance, schema=propertyCycles, tests=[propertyCycles]],
       [[json([=(error,propertyClassCycle),=(property,'http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory'),=(path,['http://dacura.cs.tcd.ie/data/seshat#controlsTerritory','http://dacura.cs.tcd.ie/data/seshat#relatedToRubbish','http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory']),=(message,"Property Class http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory has a property class cycle with path: ['http://dacura.cs.tcd.ie/data/seshat#controlsTerritory','http://dacura.cs.tcd.ie/data/seshat#relatedToRubbish','http://dacura.cs.tcd.ie/data/seshat#associatedWithTerritory']")])]]).
 tests([instance=instance, schema=typeCheck, tests=[localCheckInstanceClass]],
       [[json([=(error,orphanInstance),=(instance,'http://dacura.cs.tcd.ie/data/seshat#thing'),=(class,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey')])]]).
+tests([instance=rdfcioInstance, schema=rdfcio, tests=all], []). 
+
 
 fname(Name,FName) :-
     file_search_path(cliopatria,Path),

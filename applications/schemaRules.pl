@@ -21,11 +21,12 @@
 
 %%%%%%%%%%%%%%%%%%%%
 % classes
+:- rdf_meta class(r,o).
 class(X,Schema) :- rdf(X, rdf:type, rdfs:'Class', Schema).
 class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema).
 class(X,Schema) :- rdf(X, rdf:type, owl:'Restriction', Schema).
-class(X,Schema) :- rdf(X, rdf:type, rdf:'Alt', Schema).
-class(X,Schema) :- rdf(X, rdf:type, rdf:'Bag', Schema).
+%%%% class(rdf:'Alt',_). disgusting hack, removed DDD
+%%%% class(rdf:'Bag',_).
 % Skos concept? for class as well?
 
 % DDD not negation has no value?
@@ -46,6 +47,8 @@ duplicateClasses(L, Schema) :- setof(JSON, notUniqueClassJSON(JSON,_,Schema), L)
 
 % subclasses 
 
+:- rdf_meta subClass(r,r,o).
+subClass(_,owl:'Thing', _).
 subClass(X,Y, Schema) :- rdf(X, rdfs:subClassOf, Y, Schema).
 
 subClassOf(X,Y,Schema) :- rdf(X, rdfs:subClassOf, Y, Schema).
@@ -59,7 +62,7 @@ notSubClassOfClass(X,Y,Schema) :- subClassOf(X,Y,Schema), \+ class(Y,Schema).
 notSubClassOfClassJSON(JSON,X,Y,Schema) :-
     notSubClassOfClass(X,Y,Schema),
     atom_string(X,Xstr),
-    atom_string(Y,Ystr),
+    term_string(Y,Ystr),
     string_concat(Xstr, " is not a subclass of some valid class named ", M),
     string_concat(M,Ystr,M2),
     string_concat(M2,".",Message),
@@ -251,8 +254,9 @@ baseType(xsd:'NCName').
 baseType(rdf:'PlainLiteral').
 baseType(rdf:'Literal').
 
-:- rdf_meta type(r).
-type(X,_) :- baseType(X), !. 
+:- rdf_meta type(r,o).
+type(X,_) :- baseType(X), !.
+type(owl:'Thing',_).
 type(X,Schema) :- class(X,Schema). 
 
 % range / domain
@@ -266,6 +270,10 @@ domain(P,D,Schema) :- rdf(P2, rdfs:domain, D, Schema), subsumptionPropertiesOf(P
 validRange(P,R,Schema) :- range(P,R,Schema), type(R,Schema).
 validDomain(P,D,Schema) :- domain(P,D,Schema), type(D,Schema).
 
+notValidRange(P,R,Schema) :- range(P,R,Schema), \+ validRange(P,R,Schema).
+notValidDomain(P,D,Schema) :- domain(P,D,Schema), \+ validDomain(P,D,Schema). 
+
+%% DDD no longer used
 uniqueValidRange(P,R,Schema) :- range(P,R,Schema), findall(R2, validRange(P,R2,Schema), L), length(L,1).
 
 uniqueValidDomain(P,D,Schema) :- domain(P,D,Schema), findall(D2, validRange(P,D2,Schema), L), length(L,1).
@@ -275,19 +283,19 @@ notUniqueValidRange(P,R,Schema) :- range(P,R,Schema), findall(R2, validRange(P,R
 notUniqueValidDomain(P,D,Schema) :- domain(P,D,Schema), findall(D2, validDomain(P,D2,Schema), L), \+ length(L,1).
 
 % does this do too much? 
-invalidRange(L,Schema) :- setof(json([error=notUniqueValidRange, 
+invalidRange(L,Schema) :- setof(json([error=notValidRange, 
 				      property=Y,
-				      range=R]), notUniqueValidRange(Y,R,Schema), L).
+				      range=R]), notValidRange(Y,R,Schema), L).
 
-invalidDomain(L,Schema) :- setof(json([error=notUniqueValidDomain, 
+invalidDomain(L,Schema) :- setof(json([error=notValidDomain, 
 				       property=Y, 
-				       domain=D]), notUniqueValidDomain(Y,D,Schema), L).
+				       domain=D]), notValidDomain(Y,D,Schema), L).
 
 %%%%%%%%%%%%%%%%%%%%%%%
 %% Instance constraints
 
 instanceClass(X, Y, Instance) :- rdf(X, rdf:type, Y, Instance).
-
+	      
 instance(X,Instance) :- instanceClass(X,_,Instance).
 
 instanceHasClass(X,C,Instance,Schema) :- instanceClass(X,C,Instance), class(C,Schema).
@@ -325,7 +333,7 @@ localOrphanProperties(X,L,Instance,Schema) :- setof(json([error=noInstanceProper
 %% Instance Type Checking constraints 
 
 % ranges have more possible targets as they can be literals. 
-:- rdf_meta typeCheckRange(r,t).
+:- rdf_meta typeCheckRange(r,r,o,o).
 % TODO: Needs checking of the form of constant
 typeCheckRange(T,literal(type(T,_)),_,_) :- baseType(T), !.
 typeCheckRange(_,literal(type(_,_)),_,_) :- !, false.
@@ -525,6 +533,7 @@ schemaTest(Pragma,W,Schema) :-
     (W = [] *-> fail ; true, !). % Fail early for these special tests (cycles!!)    
 schemaTest(Pragma,W,Schema) :-
     testSchema(Test),
+    nl,write(Test),nl,	
     member(tests=TList,Pragma), 
     (all=TList 
      *-> true
