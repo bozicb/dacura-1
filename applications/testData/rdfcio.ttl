@@ -91,7 +91,7 @@
 	  owl:minCardinality "1"^^xsd:nonNegativeInteger .
 
 :isFollowedBy a owl:ObjectProperty , 
- 	        owl:transitiveProperty ;
+ 	        owl:TransitiveProperty ;
 	      rdfs:domain :List ;
               rdfs:range :List .
 
