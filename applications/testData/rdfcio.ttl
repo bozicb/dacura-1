@@ -31,6 +31,7 @@
 	rdfs:label "Container" ;
 	rdfs:comment "The class of RDF containers." .
 
+# is this needed?  How do we use it?
 :ContainerMembershipProperty a owl:ObjectProperty ;
 	rdfs:label "ContainerMembershipProperty" ;
 	rdfs:comment """The property class of container membership properties
@@ -76,51 +77,60 @@
      rdfs:label "Alt" ;
      rdfs:comment "The class of containers of alternatives." .
 
-:List a owl:Class;
-      rdfs:subClassOf :Container ;
-      rdfs:subClassOf 
-      rdfs:label "List" ;
-      rdfs:comment "The class of ordered containers." .
+## Implementation of Lists.
 
 :first a owl:FunctionalProperty ,
-         owl:ObjectProperty;
+         owl:ObjectProperty ;
        rdfs:subPropertyOf :member ;
        rdfs:label "first" ;
        rdfs:comment "The first element of a list." ;
        rdfs:domain :List .
+
+:hasFirst a owl:Restriction ;
+	  owl:onProperty :first ;
+	  owl:minCardinality "1"^^xsd:nonNegativeInteger .
 
 :isFollowedBy a owl:ObjectProperty , 
  	        owl:transitiveProperty ;
 	      rdfs:domain :List ;
               rdfs:range :List .
 
-:isFollowedByFirst a owl:ObjectProperty ;
-		   owl:propertyChain (:isFollowedBy :first) ;
-                   rdfs:subPropertyOf :member .
+:alsoContains a owl:ObjectProperty ;
+              rdfs:subPropertyOf :member ;
+	      owl:propertyChain ( :isFollowedBy :first ) ;
+	      rdfs:label "alsoContains" ;
+	      rdfs:comment "Property which reaches the elements of the rest of the list.".
 
 :rest a owl:FunctionalProperty ,
         owl:ObjectProperty ;
       rdfs:subPropertyOf :isFollowedBy ;
       rdfs:label "rest" ;
-      rdfs:comment "The tail, or rest, of the list." .
+      rdfs:comment "The rest of the list" ;
+      rdfs:domain :List ;
+      rdfs:range :List .
 
-:firstRestriction a owl:Restriction ;
-		  owl:onProperty :first ;
-		  owl:someValuesFrom owl:Thing .
+:hasRest a owl:Restriction ;
+	 owl:onProperty :rest ;
+	 owl:onClass :List ;
+	 owl:minQualifiedCardinality "1"^^xsd:nonNegativeIntger .
 
-:noFirst a owl:Class ;
-	 owl:complementOf :firstRestriction .
+:nil a owl:Class ;
+     rdfs:label "nil" ;
+     rdfs:comment "List terminator, with no first or rest" ;
+     rdfs:subClassOf [ a owl:Class ;
+     		       owl:complementOf :hasFirst ] ,
+		     [ a owl:Class ;
+		       owl:complementOf :hasRest ] .
 
-:isFollowedByRestriction a owl:Restriction ;
-			 owl:onProperty :isFollowedBy ;
-			 owl:someValuesFrom owl:Thing .
-
-:nothingFollows a owl:Class ;
-		owl:complementOf :isFollowedByRestriction .
-
-:nil a owl:Class;
-     rdfs:subClassOf 
-        [ a owl:Class;
-          owl:intersectionOf  (:List :noFirst) ],
-        [ a owl:Class;
-	  owl:intersectionOf  (:List :nothingFollows) ] .
+:cons a owl:Class ;
+      rdfs:subClassOf [ a owl:Class ;
+      		      	owl:intersectionOf ( :hasFirst :hasRest ) ] ;
+      rdfs:label "cons" ;
+      rdfs:comment "List cell with first and rest" .
+      
+:List a owl:Class;
+      rdfs:subClassOf :Container ;
+      rdfs:subClassOf [ a owl:Class ;
+      		      	owl:unionOf ( :nil :cons ) ] ;
+      rdfs:label "List" ;
+      rdfs:comment "The class of ordered containers." .
