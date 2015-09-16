@@ -78,6 +78,7 @@
 
 :List a owl:Class;
       rdfs:subClassOf :Container ;
+      rdfs:subClassOf 
       rdfs:label "List" ;
       rdfs:comment "The class of ordered containers." .
 
