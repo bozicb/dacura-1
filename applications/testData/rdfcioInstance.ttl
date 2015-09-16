@@ -10,7 +10,13 @@
   a cio:List ;
   cio:first [ a cio:Value ; cio:value "10"^^xsd:integer ] ;
   cio:rest [ a cio:List ;
-	  cio:first [ a cio:Value ; cio:value "20"^^xsd:integer ] ;
-	  cio:rest [ a cio:List ;
-	          cio:first [ a cio:Value ; cio:value "30"^^xsd:integer ] ;
-		  cio:rest [ a cio:nil ] ] ] .
+             cio:first [ a cio:Value ; cio:value "20"^^xsd:integer ] ;
+             cio:rest [ a cio:List ;
+                        cio:first [ a cio:Value ; cio:value "30"^^xsd:integer ] ;
+                        cio:rest [ a cio:nil ] ] ] .
+
+
+:notNil a cio:nil ;
+	cio:first [ a cio:Value ; cio:value "10"^^xsd:integer ].
+
+:isNil a cio:nil.

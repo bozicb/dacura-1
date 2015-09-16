@@ -91,20 +91,30 @@ runChain(X,[P|PropList],Z,Instance,Schema) :-
     inferredEdge(X,P,Y,Instance,Schema),
     runChain(Y,PropList,Z,Instance,Schema).
 
+leProp(SOP,SOP,_).
+leProp(SOP,POP,Schema) :-
+    rdf(SOP,rdfs:subPropertyOf,POP,Schema).
+
+% Impose an ordering to avoid cycles.
+% Concrete links are already in InferredEdge
+inferredTransitiveEdge(X,OP,Z,Instance,Schema) :-
+    rdf(SOP,rdfs:subPropertyOf,OP,Schema),
+    inferredEdge(X,SOP,Y,Instance,Schema),
+    inferredEdge(Y,OP,Z,Instance,Schema).
+
 :- rdf_meta inferredEdge(r,r,r,o,o).
 inferredEdge(X,OP,Y,Instance,Schema) :-
     rdf(OP,rdf:type,owl:'ObjectProperty', Schema),
     rdf(X,OP,Y,Instance).
 inferredEdge(X,OP,Y,Instance,Schema) :-
     rdf(OP,rdf:type,owl:'TransitiveProperty', Schema),
-    rdf(X,OP,Z,Instance),
-    inferredEdge(Z,OP,Y,Instance,Schema).
+    inferredTransitiveEdge(X,OP,Y,Instance,Schema).
 inferredEdge(X,OP,Y,Instance,Schema) :-
-    rdf(OP,rdf:propertyChain,ListObj, Schema),
+    rdf(OP,owl:propertyChain,ListObj, Schema),
     collect(ListObj,PropList,Schema),
     runChain(X,PropList,Y,Instance,Schema).
 inferredEdge(X,OP,Y,Instance,Schema) :- 
-    rdf(SOP,rdf:subPropertyOf,OP),
+    rdf(SOP,rdfs:subPropertyOf,OP,Schema),
     inferredEdge(X,SOP,Y,Instance,Schema).
 
 card(X,OP,Y,N) :-
