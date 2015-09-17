@@ -6,6 +6,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix dc: <http://purl.org/dc/elements/1.1/> .
 
+# This is valid
 :numbers 
   a cio:List ;
   cio:first [ a cio:Value ; cio:value "10"^^xsd:integer ] ;
@@ -15,8 +16,9 @@
                         cio:first [ a cio:Value ; cio:value "30"^^xsd:integer ] ;
                         cio:rest [ a cio:nil ] ] ] .
 
-
+# This should fail
 :notNil a cio:nil ;
 	cio:first [ a cio:Value ; cio:value "10"^^xsd:integer ].
 
-:isNil a cio:nil.
+# This is valid
+:isNil a cio:nil .

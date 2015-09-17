@@ -88,7 +88,7 @@
 
 :hasFirst a owl:Restriction ;
 	  owl:onProperty :first ;
-	  owl:minCardinality "1"^^xsd:nonNegativeInteger .
+	  owl:cardinality "1"^^xsd:nonNegativeInteger .
 
 :isFollowedBy a owl:ObjectProperty , 
  	        owl:TransitiveProperty ;
@@ -111,26 +111,23 @@
 
 :hasRest a owl:Restriction ;
 	 owl:onProperty :rest ;
-	 owl:onClass :List ;
-	 owl:minQualifiedCardinality "1"^^xsd:nonNegativeIntger .
+	 owl:cardinality "1"^^xsd:nonNegativeInteger .
 
 :nil a owl:Class ;
      rdfs:label "nil" ;
      rdfs:comment "List terminator, with no first or rest" ;
-     rdfs:subClassOf [ a owl:Class ;
-     		       owl:complementOf :hasFirst ] ,
-		     [ a owl:Class ;
-		       owl:complementOf :hasRest ] .
+     owl:intersectionOf ( [ a owl:Class ;
+     		            owl:complementOf :hasFirst ]
+		          [ a owl:Class ;
+		            owl:complementOf :hasRest ] ).
 
 :cons a owl:Class ;
-      rdfs:subClassOf [ a owl:Class ;
-      		      	owl:intersectionOf ( :hasFirst :hasRest ) ] ;
+      owl:intersectionOf ( :hasFirst :hasRest ) ;
       rdfs:label "cons" ;
       rdfs:comment "List cell with first and rest" .
       
 :List a owl:Class;
       rdfs:subClassOf :Container ;
-      rdfs:subClassOf [ a owl:Class ;
-      		      	owl:unionOf ( :nil :cons ) ] ;
+      owl:unionOf ( :nil :cons ) ;
       rdfs:label "List" ;
       rdfs:comment "The class of ordered containers." .
