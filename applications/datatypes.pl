@@ -240,7 +240,7 @@ nbasetypeElt(literal(type(_,S)),xsd:byte, Reason) :-
     atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
     (I < -128 ; I > 127 )
     ->   
-    Reason = [reason='Not a well formed xsd:byte, out of range.',
+    Reason = [reason='Not a well formed xsd:byte: out of range.',
 	      literal=S,
 	      type='xsd:byte'].
 nbasetypeElt(literal(type(_,S)),xsd:short, Reason) :-
@@ -253,7 +253,7 @@ nbasetypeElt(literal(type(_,S)),xsd:short, Reason) :-
     atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
     (I < -32768 ; I > 32767 )
     ->   
-    Reason = [reason='Not a well formed xsd:short, out of range.',
+    Reason = [reason='Not a well formed xsd:short: out of range.',
 	      literal=S,
 	      type='xsd:short'].
 nbasetypeElt(literal(type(_,S)),xsd:int, Reason) :-
@@ -266,7 +266,7 @@ nbasetypeElt(literal(type(_,S)),xsd:int, Reason) :-
     atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
     (I < -2147483648 ; I > 2147483647 )
     ->   
-    Reason = [reason='Not a well formed xsd:int, out of range.',
+    Reason = [reason='Not a well formed xsd:int: out of range.',
 	      literal=S,
 	      type='xsd:int'].
 nbasetypeElt(literal(type(_,S)),xsd:long, Reason) :-
@@ -277,25 +277,96 @@ nbasetypeElt(literal(type(_,S)),xsd:long, Reason) :-
 	      type='xsd:long'].
 nbasetypeElt(literal(type(_,S)),xsd:long, Reason) :-
     atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
-    (I < -2147483648 ; I > 2147483647 )
+    (I < -9223372036854775808 ; I > 9223372036854775807 )
     ->   
-    Reason = [reason='Not a well formed xsd:long, out of range.',
+    Reason = [reason='Not a well formed xsd:long: out of range.',
 	      literal=S,
 	      type='xsd:long'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedByte, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:unsignedByte',
+	      literal=S,
+	      type='xsd:unsignedByte'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedByte, Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    (I < 0 ; I > 255 )
+    ->   
+    Reason = [reason='Not a well formed xsd:unsignedByte: out of range.',
+	      literal=S,
+	      type='xsd:unsignedByte'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedShort, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:unsignedShort',
+	      literal=S,
+	      type='xsd:unsignedShort'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedShort, Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    (I < 0 ; I > 65535 )
+    ->   
+    Reason = [reason='Not a well formed xsd:unsignedShort: out of range.',
+	      literal=S,
+	      type='xsd:unsignedShort'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedInt, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:unsignedInt',
+	      literal=S,
+	      type='xsd:unsignedInt'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedInt, Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    (I < 0 ; I > 4294967295 )
+    ->   
+    Reason = [reason='Not a well formed xsd:unsignedInt: out of range.',
+	      literal=S,
+	      type='xsd:unsignedInt'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedLong, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:unsignedLong',
+	      literal=S,
+	      type='xsd:unsignedLong'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedLong, Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    (I < 0 ; I > 18446744073709551615 )
+    ->   
+    Reason = [reason='Not a well formed xsd:unsignedLong: out of range.',
+	      literal=S,
+	      type='xsd:unsignedLong'].
+nbasetypeElt(literal(type(_,S)),xsd:positiveInteger, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:positiveInteger',
+	      literal=S,
+	      type='xsd:positiveInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:positiveInteger, Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    I < 1 
+    ->   
+    Reason = [reason='Not a well formed xsd:positiveInteger: out of range.',
+	      literal=S,
+	      type='xsd:positiveInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:nonNegativeInteger, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:nonNegativeInteger',
+	      literal=S,
+	      type='xsd:nonNegativeInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:negativeInteger, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:negativeInteger(_),C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:negativeInteger',
+	      literal=S,
+	      type='xsd:negativeInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:nonPositiveInteger, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:nonPositiveInteger(_),C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:nonPositiveInteger',
+	      literal=S,
+	      type='xsd:nonPositiveInteger'].
 
-
-%% %% nbasetypeElt(xsd:byte). 
-%% %% nbasetypeElt(xsd:short). 
-%% %% nbasetypeElt(xsd:int). 
-%% %% nbasetypeElt(xsd:long). 
-%% %% nbasetypeElt(xsd:unsignedByte). 
-%% %% nbasetypeElt(xsd:unsignedInt). 
-%% %% nbasetypeElt(xsd:unsignedLong). 
-%% %% nbasetypeElt(xsd:positiveInteger). 
-%% %% nbasetypeElt(xsd:nonNegativeInteger). 
-%% %% nbasetypeElt(xsd:negativeInteger). 
-%% %% nbasetypeElt(xsd:nonPositiveInteger). 
-%% %% nbasetypeElt(xsd:base64Binary). 
+%% %% nbasetypeElt(xsd:base64Binary).
 %% %% nbasetypeElt(xsd:anyURI). 
 %% %% nbasetypeElt(xsd:language). 
 %% %% nbasetypeElt(xsd:normalizedString). 

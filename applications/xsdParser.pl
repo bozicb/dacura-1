@@ -32,6 +32,13 @@ fullstop --> ".".
 integer(I) --> sign(S), natural(N),
 	       { I is N * S } .
 
+positiveInteger(I) --> natural(I) .
+positiveInteger(I) --> "+", natural(I) .
+
+negativeInteger(I) --> "-", natural(N) , { N > 0, I is N * -1 }.
+
+nonPositiveInteger(I) --> "-", natural(N) , { I is N * -1 } .
+
 nonNegativeInteger(I) --> natural(I) .
 nonNegativeInteger(I) --> "+", natural(I) .
 nonNegativeInteger(0) --> "-0" .
@@ -58,7 +65,7 @@ timeZone(-1,ZH,ZM) --> "-", twoDigitNatural(ZH), ":", twoDigitNatural(ZM) .
 timeZone(1,0,0) --> "" .
 
 % Hour, Minute, Second, ZoneSign, ZoneHour, ZoneMinute
-time(H,M,S,Z,ZH,ZM) --> twoDigitNaturals(H), ":", twoDigitNaturals(M), ":", twoDigitNaturals(S),
+time(H,M,S,Z,ZH,ZM) --> twoDigitNatural(H), ":", twoDigitNatural(M), ":", twoDigitNatural(S),
 			timeZone(Z,ZH,ZM) .
 
 year(SY) --> sign(S), fourDigitNatural(Y),
@@ -74,7 +81,7 @@ gYearMonth(Y,M,Z,ZH,ZM) --> year(Y), "-", twoDigitNatural(M), timeZone(Z,ZH,ZM) 
 
 gMonth(M,Z,ZH,ZM) --> "-", twoDigitNatural(M), timeZone(Z,ZH,ZM) .
 
-gMonthDay(Mo,D,Z,ZH,ZM) --> "-", twoDigitNatural(Mo), "-", twoDigitNaturl(D), timeZone(Z,ZH,ZM) .
+gMonthDay(Mo,D,Z,ZH,ZM) --> "-", twoDigitNatural(Mo), "-", twoDigitNatural(D), timeZone(Z,ZH,ZM) .
 
 gDay(D,Z,ZH,ZM) --> "--", twoDigitNatural(D), timeZone(Z,ZH,ZM) .
 
@@ -111,3 +118,36 @@ duration(Sign,Y,Mo,D,H,M,S) --> sign(Sign), "P", maybeYear(Y), maybeMonth(Mo), m
 yearMonthDuration(Sign,Y,Mo) --> sign(Sign), "P", maybeYear(Y), maybeMonth(Mo) .
 
 dayTimeDuration(Sign,D,H,M,S) --> sign(Sign), "P", maybeDay(D), maybeTime(H,M,S) .
+
+%  Base64 encoding
+space --> " " .
+space --> "\n" .
+space --> "\t" .
+space --> "\r" .
+
+base64char --> "+" .
+base64char --> "/" .
+
+alpha([H|T],T) :- H > 64, H < 91. 
+
+alphas --> alpha .
+
+whitespace --> space, whitespace .
+whitespace --> "" .
+    
+base64elt --> alpha . 
+base64elt --> base64char .
+base64elt --> digit(_) .
+
+base64
+equals --> "=" .
+equals --> "=" , equals
+
+base64(Pad) --> whitespace, base64elt(Pad),
+		whitespace, base64elt(Pad),
+		whitespace, base64elt(Pad),
+		whitespace, base64elt(Pad).
+base64(_) --> whitespace .
+		
+		 
+

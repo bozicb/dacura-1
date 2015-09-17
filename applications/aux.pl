@@ -1,7 +1,7 @@
 :- module(aux,[]).
 :- use_module(library(semweb/rdf_db)).
 :- use_module(schemaRules).
-:- use_module(xsdParser).
+
 % This file carries auxilliary predicates that need to be used
 % for reasoning tests.
 
@@ -115,7 +115,7 @@ card(X,OP,Y,Instance,Schema,N) :-
 
 qualifiedCard(X,OP,Y,C,Instance,Schema,N) :-
     (setof(Y,(inferredEdge(X,OP,Y,Instance,Schema),
-	      elt(Y,C,Instance,Schema)),
+	      \+ nelt(Y,C,Instance,Schema,_)),
 	   ListX) *-> ListX = L ; L = []),
     length(L,N).
 
