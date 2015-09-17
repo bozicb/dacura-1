@@ -113,7 +113,7 @@ card(X,OP,Y,Instance,Schema,N) :-
     (setof(Y,inferredEdge(X,OP,Y,Instance,Schema), ListX) *-> ListX = L ; L = []),
     length(L,N).
 
-qualitifiedCard(X,OP,Y,C,Instance,Schema,N) :-
+qualifiedCard(X,OP,Y,C,Instance,Schema,N) :-
     (setof(Y,(inferredEdge(X,OP,Y,Instance,Schema),
 	      elt(Y,C,Instance,Schema)),
 	   ListX) *-> ListX = L ; L = []),
@@ -233,74 +233,6 @@ nelt(X,CP,Instance,Schema,Reason) :-
 		 element=X,
 		 class=CP,
 		 instanceClass=CC]).
-
-:- rdf_meta nbasetypeElt(r,r,t).
-nbasetypeElt(literal(S),xsd:string,Reason) :-
-    \+ atom(S), term_to_atom(S,A),
-    Reason = [reason='Expected atom, found term',
-	      literal=A].
-nbasetypeElt(literal(lang(S,L)),xsd:string,Reason) :-
-    \+ atom(S), term_to_atom(S,A),
-    Reason = [reason='Expected atom in string section, found term.',
-	      literal=A].
-nbasetypeElt(literal(lang(S,L)),xsd:string,Reason) :-
-    \+ atom(L), term_to_atom(L,A),
-    Reason = [reason='Expected atom in language section, found term.',
-	      literal=A].
-nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
-    \+ atom(S), term_to_atom(type(T,S),A),
-    Reason = [reason='Expected atom, found term as element.',
-	      literal=A].
-nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
-    \+ atom(T), term_to_atom(type(T,S),A),
-    Reason = [reason='Expected atom, found term as type.',
-	      literal=A].
-nbasetypeElt(literal(type(T1,S)),T2,Reason) :-
-    \+ dataTypeSubsumes(T1,T2), term_to_atom(T1,A), term_to_atom(T2,B),
-    Reason = [reason='Could not subsume type1 with type2',
-	      type1=A,
-	      type2=B].
-nbasetypeElt(literal(type(_,S)),xsd:boolean,Reason) :-
-    \+ member(S,['true','false','1','0']), term_to_atom(S,A),
-    Reason = [reason='Not a well formed boolean.',
-	      literal=A].
-nbasetypeElt(literal(type(_,S)),xsd:decimal,Reason) :-
-    \+ 
-nbasetypeElt(xsd:integer). 
-nbasetypeElt(xsd:double). 
-nbasetypeElt(xsd:float). 
-nbasetypeElt(xsd:time).
-nbasetypeElt(xsd:dateTime). 
-nbasetypeElt(xsd:dateTimeStamp).
-nbasetypeElt(xsd:gYear). 
-nbasetypeElt(xsd:gMonth). 
-nbasetypeElt(xsd:gDay). 
-nbasetypeElt(xsd:gYearMonth). 	
-nbasetypeElt(xsd:gMonthDay). 
-nbasetypeElt(xsd:duration). 
-nbasetypeElt(xsd:yearMonthDuration). 
-nbasetypeElt(xsd:dayTimeDuration). 
-nbasetypeElt(xsd:byte). 
-nbasetypeElt(xsd:short). 
-nbasetypeElt(xsd:int). 
-nbasetypeElt(xsd:long). 
-nbasetypeElt(xsd:unsignedByte). 
-nbasetypeElt(xsd:unsignedInt). 
-nbasetypeElt(xsd:unsignedLong). 
-nbasetypeElt(xsd:positiveInteger). 
-nbasetypeElt(xsd:nonNegativeInteger). 
-nbasetypeElt(xsd:negativeInteger). 
-nbasetypeElt(xsd:nonPositiveInteger). 
-nbasetypeElt(xsd:base64Binary). 
-nbasetypeElt(xsd:anyURI). 
-nbasetypeElt(xsd:language). 
-nbasetypeElt(xsd:normalizedString). 
-nbasetypeElt(xsd:token). 
-nbasetypeElt(xsd:'NMTOKEN'). 
-nbasetypeElt(xsd:'Name'). 
-nbasetypeElt(xsd:'NCName'). 
-nbasetypeElt(rdf:'PlainLiteral').
-nbasetypeElt(rdf:'Literal').
 
 % The triple (X,P,Y) comes from the Herbrand base.
 %:- rdf_meta invalidEdge(r,r,r,o,o,t).
