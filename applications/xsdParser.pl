@@ -53,12 +53,12 @@ double(M,1,double) --> decimal(M) .
 double(M,E,double) --> decimal(M), exp, integer(E) .
 
 timeZone(1,0,0) --> "Z" .
-timeZone(1,0,0) --> "+", twoDigitNatural(ZH), ":", twoDigitNatural(ZM) .
-timeZone(-1,0,0) --> "-", twoDigitNatural(ZH), ":", twoDigitNatural(ZM) .
+timeZone(1,ZH,ZM) --> "+", twoDigitNatural(ZH), ":", twoDigitNatural(ZM) .
+timeZone(-1,ZH,ZM) --> "-", twoDigitNatural(ZH), ":", twoDigitNatural(ZM) .
 timeZone(1,0,0) --> "" .
 
 % Hour, Minute, Second, ZoneSign, ZoneHour, ZoneMinute
-time(H,M,S,Z,ZH,ZM) --> twoDigitNaturals(H), ":", twoDigitNaturals(M), ":" twoDigitNaturals(S) ,
+time(H,M,S,Z,ZH,ZM) --> twoDigitNaturals(H), ":", twoDigitNaturals(M), ":", twoDigitNaturals(S),
 			timeZone(Z,ZH,ZM) .
 
 year(SY) --> sign(S), fourDigitNatural(Y),
@@ -66,12 +66,11 @@ year(SY) --> sign(S), fourDigitNatural(Y),
 
 dateTime(SY,Mo,D,H,M,S,Z,ZH,ZM) -->
     year(SY), "-", twoDigitNatural(Mo), "-", twoDigitNatural(D),
-    "T", time(H,M,S,Z,ZH,ZM) ,
-    {SY is S * Y}.
+    "T", time(H,M,S,Z,ZH,ZM) .
 
 gYear(Y,Z,ZH,ZM) --> year(Y), timeZone(Z,ZH,ZM) .
 
-gYearMonth(Y,M,Z,ZH,ZM) --> year(Y), "-", twoDigitNatural(Mo), timeZone(Z,ZH,ZM) .
+gYearMonth(Y,M,Z,ZH,ZM) --> year(Y), "-", twoDigitNatural(M), timeZone(Z,ZH,ZM) .
 
 gMonth(M,Z,ZH,ZM) --> "-", twoDigitNatural(M), timeZone(Z,ZH,ZM) .
 
@@ -98,9 +97,17 @@ maybeMinute(-1) --> "" .
 maybeSecond(S) --> unsignedDecimal(S), "S" .
 maybeSecond(-1) --> "" .
 
-duration(S,Y,M,D,0,0,0) --> sign(S), "P", maybeYear(Y), maybeMonth(M), maybeDay(D) .
-duration(S,Y,M,D,H,M,S) --> sign(S), "P", maybeYear(Y), maybeMonth(M), maybeDay(D),
-			    "T", maybeHour(H), maybeMinute(M), maybeSecond(S),
-			    { ( M < 0 ; D < 0
+maybeTime(H,M,S) --> "T", maybeHour(MH), maybeMinute(MM), maybeSecond(MS),
+		     { (MH < 0, MM < 0, MS < 0)
+		       -> fail
+		       ; (MH < 0 -> H = 0 ; MH = H),
+			 (MM < 0 -> M = 0 ; MM = M),
+			 (MS < 0 -> S = 0 ; MS = S) } .
+maybeTime(0,0,0) --> "" .
 
-			  
+duration(Sign,Y,Mo,D,H,M,S) --> sign(Sign), "P", maybeYear(Y), maybeMonth(Mo), maybeDay(D),
+				maybeTime(H,M,S) .
+
+yearMonthDuration(Sign,Y,Mo) --> sign(Sign), "P", maybeYear(Y), maybeMonth(Mo) .
+
+dayTimeDuration(Sign,D,H,M,S) --> sign(Sign), "P", maybeDay(D), maybeTime(H,M,S) .
