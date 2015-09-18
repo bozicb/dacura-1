@@ -3,7 +3,55 @@
 :- use_module(xsdParser).
 :- use_module(library(uri)).
 
-datatypeSubsumes(_,_).
+% We visually represent the heirarchy with whitespace.
+:- rdf_meta xsdParent(r,r).
+xsdParent(xsd:anySimpleType,rdf:'Literal').
+xsdParent(xsd:string,xsd:anySimpleType).
+ xsdParent(xsd:normalizedString, xsd:string).
+   xsdParent(xsd:token, xsd:normalizedString).
+      xsdParent(xsd:language, xsd:token).
+      xsdParent(xsd:'NMTOKEN', xsd:token).
+      xsdParent(xsd:'Name', xsd:token).
+        xsdParent(xsd:'NCName', xsd:'Name').
+          xsdParent(xsd:'ID',xsd:'NCName'). % unimplemented.
+          xsdParent(xsd:'IDREF',xsd:'NCName'). % unimplemented.
+          xsdParent(xsd:'ENTITY',xsd:'NCName'). % unimplemexgot linented.
+xsdParent(xsd:decimal,xsd:anySimpleType).
+  xsdParent(xsd:integer,xsd:decimal).
+    xsdParent(xsd:nonPositiveInteger,xsd:integer).
+      xsdParent(xsd:negativeInteger,xsd:nonPositiveInteger).
+    xsdParent(xsd:long,xsd:intger).
+      xsdParent(xsd:integer,xsd:long).
+        xsdParent(xsd:short,xsd:integer).
+          xsdParent(xsd:integer,xsd:byte).
+    xsdParent(xsd:nonNegativeInteger,xsd:integer).
+      xsdParent(xsd:unsignedLong,xsd:nonNegativeInteger). 
+        xsdParent(xsd:unsignedInt,xsd:unsginedLong).
+          xsdParent(xsd:unsignedShort,xsd:unsignedInt).
+            xsdParent(xsd:unsignedByte,xsd:unsignedShort).
+      xsdParent(xsd:positiveInteger,xsd:nonNegativeInteger).
+xsdParent(xsd:'NOTATION',xsd:anySimpleType). % unimplemented.
+xsdParent(xsd:'QName',xsd:anySimpleType). % unimplemented.
+xsdParent(xsd:float,xsd:anySimpleType).
+xsdParent(xsd:double,xsd:anySimpleType).
+xsdParent(xsd:boolean,xsd:anySimpleType).
+xsdParent(xsd:base64Binary,xsd:anySimpleType).
+xsdParent(xsd:hexBinary,xsd:anySimpleType).
+xsdParent(xsd:anyURI,xsd:anySimpleType).
+xsdParent(xsd:date,xsd:anySimpleType).
+xsdParent(xsd:time,xsd:anySimpleType).
+xsdParent(xsd:dateTime,xsd:anySimpleType).
+xsdParent(xsd:gYear,xsd:anySimpleType).
+xsdParent(xsd:gYearMonth,xsd:anySimpleType).
+xsdParent(xsd:gMonth,xsd:anySimpleType).
+xsdParent(xsd:gMonthDay,xsd:anySimpleType).
+xsdParent(xsd:gDay,xsd:anySimpleType).
+xsdParent(xsd:duration,xsd:anySimpleType).
+  xsdParent(xsd:dayTimeDuration,xsd:duration).
+  xsdParent(xsd:yearMonthDuration,xsd:duration).
+
+datatypeSubsumes(T,T).
+datatypeSubsumes(Sub,Super) :- xsdParent(Sub,Parent), datatypeSubsumes(Parent,Super).
 
 daysInMonth(_,1,31).
 daysInMonth(Y,2,D) :- Ans is Y mod 4, Ans = 0 -> D = 29 ; D = 28 .
@@ -360,19 +408,67 @@ nbasetypeElt(literal(type(_,S)),xsd:base64Binary, Reason) :-
     ->   
     Reason = [reason='Not a well formed xsd:base64Binary',
 	      literal=S,
-	      type='base64Binary'].
+	      type='xsd:base64Binary'].
 nbasetypeElt(literal(type(_,S)),xsd:anyURI, Reason) :-
-    \+ uri_components(anyURI,_)
+    \+ uri_components(S,_)
     ->   
     Reason = [reason='Not a well formed xsd:anyUri',
 	      literal=S,
-	      type='base64Binar'].
+	      type='xsd:anyURI'].
+nbasetypeElt(literal(type(_,S)),xsd:language, Reason) :-
+    \+ uri_components(xsdParser:language,_)
+    ->   
+    Reason = [reason='Not a well formed xsd:language',
+	      literal=S,
+	      type='xsd:language'].
+nbasetypeElt(literal(type(_,S)),xsd:normalizedString, Reason) :-
+    \+ uri_components(xsdParser:normalizedString,_)
+    ->   
+    Reason = [reason='Not a well formed xsd:normalizedString',
+	      literal=S,
+	      type='xsd:normalizedString'].
+nbasetypeElt(literal(type(_,S)),xsd:token, Reason) :-
+    \+ uri_components(xsdParser:normalizedString,_)
+    ->   
+    Reason = [reason='Not a well formed xsd:token',
+	      literal=S,
+	      type='xsd:token'].
+nbasetypeElt(literal(type(_,S)),xsd:'NMTOKEN', Reason) :-
+    \+ uri_components(xsdParser:nmtoken,_)
+    ->   
+    Reason = [reason='Not a well formed xsd:NMTOKEN',
+	      literal=S,
+	      type='xsd:NMTOKEN'].
+nbasetypeElt(literal(type(_,S)),xsd:'Name', Reason) :-
+    \+ uri_components(xsdParser:name,_)
+    ->   
+    Reason = [reason='Not a well formed xsd:Name',
+	      literal=S,
+	      type='xsd:Name'].
+nbasetypeElt(literal(type(_,S)),xsd:'NCName', Reason) :-
+    \+ uri_components(xsdParser:ncname,_)
+    ->   
+    Reason = [reason='Not a well formed xsd:NCName',
+	      literal=S,
+	      type='xsd:NCName'].
+nbasetypeElt(literal(type(_,S)),xsd:'NCName', Reason) :-
+    \+ uri_components(xsdParser:ncname,_)
+    ->   
+    Reason = [reason='Not a well formed xsd:NCName',
+	      literal=S,
+	      type='xsd:NCName'].
+nbasetypeElt(literal(T),rdf:'PlainLiteral', Reason) :-
+    (lang(_,_) \= T ; \+ atom(T))
+    ->   
+    Reason = [reason='Not a well formed rdf:PlainLiteral',
+	      literal=T,
+	      type='rdf:PlainLiteral'].
+nbasetypeElt(X,rdf:'Literal', Reason) :-
+    literal(_) \= X, term_to_atom(X,T)
+    ->   
+    Reason = [reason='Not a well formed rdf:PlainLiteral',
+	      literal=T,
+	      type='rdf:PlainLiteral'].
 
-%% %% nbasetypeElt(xsd:language). 
-%% %% nbasetypeElt(xsd:normalizedString). 
-%% %% nbasetypeElt(xsd:token). 
-%% %% nbasetypeElt(xsd:'NMTOKEN'). 
-%% %% nbasetypeElt(xsd:'Name'). 
-%% %% nbasetypeElt(xsd:'NCName'). 
 %% %% nbasetypeElt(rdf:'PlainLiteral').
 %% %% nbasetypeElt(rdf:'Literal').

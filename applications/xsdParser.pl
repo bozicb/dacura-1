@@ -194,3 +194,31 @@ language --> iso_639_base .
 language --> iana(_) . % IANA
 language --> "x-", alphas . % unregistered
 
+anyBut(S,[H|T],T) :- atom_codes(S,C), \+ member(H,C) .
+
+normalizedChar --> anyBut('<&') .
+normalizedChar --> "&amp;" .
+normalizedChar --> "&lt;" .
+
+normalizedString --> normalizedChar, normalizedString .
+normazliedString --> "" .
+
+nmtokenChar --> alpha .
+nmtokenChar --> digit(_) .
+nmtokenChar --> oneOf('.-_:') .
+
+nmtoken --> nmtokenChar, nmtoken .
+nmtoken --> "" .
+
+name --> alpha, nmtoken .
+name --> oneOf('_:'), nmtoken .
+
+ncnameChar --> alpha .
+ncnameChar --> digit(_) .
+ncnameChar --> oneOf('_-.') .
+
+ncolonSeq --> ncnameChar , ncolonSeq .
+ncolonSeq --> "" .
+
+ncname --> alpha, ncolonSeq .
+ncname --> "_" , ncolonSeq .
