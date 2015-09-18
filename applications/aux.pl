@@ -1,4 +1,4 @@
-:- module(aux,[]).
+:- module(aux,[nelt/5]).
 :- use_module(library(semweb/rdf_db)).
 :- use_module(schemaRules).
 :- use_module(datatypes).
@@ -6,23 +6,8 @@
 % This file carries auxilliary predicates that need to be used
 % for reasoning tests.
 
-% In order to apply property and class constraints to properties for DL, it's
-% necessary to be a bit careful about the mechanism of reconstruction, especially
-% considering transitivity of properties which can entail duplication of checking.
-%%%% classes(X,[]).
-%%%% classes(X,[C|L]) :-
-%%     instanceClass(X, C),
-%%     classes(X,L).
-
-%%%% validateClass(X,Message1,Message2,Instance,Schema) :-
-%%     (instanceClass(X,C,Instance) *-> 
-%% 		  class(C) ; Message2 
-%%      ; M = M)
-
-%%%% validateObject(X,DB,Message,Instance,Schema) :-
-%%     validateClass(X,Message,Instance,Schema),
-%%     validateProperties(X,Instance,Schema).
-
+% It may be better to treat lists programmatically rather than
+% collective them, using a derived predicate like rdflistMembership
 :- rdf_meta collect(r,t,o).
 collect(rdf:nil,[],_).
 collect(X,[H|T],Graph) :-
@@ -63,24 +48,6 @@ invalid(X,CC,Instance,Schema, Reason) :-
 invalid(X,CC,Instance,Schema,Reason) :-
     rdf(CC, rdf:type, owl:'Restriction', Schema),
     neltRestriction(X,CC,Instance,Schema,Reason).
-
-%%%%% May not be relevant anymore
-%% %% invalid(_,CC,_,Schema) :-
-%% %%    \+ hasFurtherConstraint(CC,Schema).  % we are already subsumed, so also valid
-%% %%                                         % as there are no further constraints
-
-%% %% hasFurtherConstraint(CC,Schema) :-
-%% %%     rdf(CC,rdfs:subClassOf,_,Schema).
-%% %% hasFurtherConstraint(CC,Schema) :-
-%% %%     rdf(CC,owl:oneOf,_,Schema).
-%% %% hasFurtherConstraint(CC,Schema) :-
-%% %%     rdf(CC,owl:intersectionOf,_,Schema).
-%% %% hasFurtherConstraint(CC,Schema) :-
-%% %%     rdf(CC,owl:unionOf,_,Schema).
-%% %% hasFurtherConstraint(CC,Schema) :-
-%% %%     rdf(CC,owl:complementOf,_,Schema).
-%% %% hasFurtherConstraint(CC,Schema) :-
-%% %%     rdf(CC,owl:'Restriciton',_,Schema).
 
 runChain(X,[P],Y,Instance,Schema) :-
     inferredEdge(X,P,Y,Instance,Schema).
@@ -205,9 +172,6 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      class=CR].
 
 %% %% :- rdf_meta class(r,o).
-%% %% class(X,Schema) :- rdf(X, rdf:type, rdfs:'Class', Schema).
-%% %% class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema).
-%% %% class(X,Schema) :- rdf(X, rdf:type, owl:'Restriction', Schema).
 
 :- rdf_meta nsubsumes(r,r,r,o,o).
 subsumes(CC,CC,_).
@@ -235,10 +199,27 @@ nelt(X,CP,Instance,Schema,Reason) :-
 		 class=CP,
 		 instanceClass=CC]).
 
+nrange(P,R,Schema) :- rdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,Schema).
+
 % The triple (X,P,Y) comes from the Herbrand base.
 %:- rdf_meta invalidEdge(r,r,r,o,o,t).
-%invalidEdge(X,P,Y,Instance,Schema,Reason) :-
-%    rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
-%    domain(P),
-%    subsumptionPropertiesOf(P,SuperP),
-%    subsumptionPropertiesOf(SubP,P).
+%% invalidEdge(X,P,Y,Instance,Schema,Reason) :-
+%%     rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
+%%     subsumptionPropertiesOf(P,SuperP).
+%%     \+ domain(SuperP,C,Schema),format(X,X
+%%     Reason = [reason='Property has no well defined domain.',
+%% 	      object=X
+%% invalidEdge(X,P,Y,Instance,Schema,Reason) :-
+%%     rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
+%%     subsumptionPropertiesOf(P,SuperP).
+%%     domain(SuperP,C,Schema),
+%%     nelt(X,C,Instance,Scheama,Reason).
+%% invalidEdge(X,P,Y,Instance,Schema,Reason) :-
+%%     rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
+%%     subsumptionPropertiesOf(P,SuperP).
+%%     range(SuperP,C,Schema),
+%%     nelt(X,C,Instance,Scheama,Reason).
+%% invalidEdge(X,P,Y,Instance,Schema,Reason) :-
+%%     \+ rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
+%%     domain(P),
+%%     subsumptionPropertiesOf(P,SuperP).

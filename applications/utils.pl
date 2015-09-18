@@ -54,3 +54,16 @@ convert_quads([[X1,Y1,Z1,G]|T1], [[X2,Y2,Z2,G]|T2]) :-
 
 %testError(errorProcedure).
 
+interpolate([],'').
+interpolate([H|T],S) :-
+    atom(H),
+    interpolate(T,Rest),
+    atom_concat(H,Rest,S) .
+interpolate([H|T],S) :-
+    string(H), atom_string(C,H),
+    interpolate(T,Rest),
+    atom_concat(C,Rest,S) .
+interpolate([H|T],S) :- 
+    ground(H), atom_to_term(C,H),
+    interpolate(T,Rest) ,
+    atom_concat(C,Rest,S) .
