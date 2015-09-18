@@ -50,6 +50,7 @@ xsdParent(xsd:duration,xsd:anySimpleType).
   xsdParent(xsd:dayTimeDuration,xsd:duration).
   xsdParent(xsd:yearMonthDuration,xsd:duration).
 
+:- rdf_meta datatypeSubsumes(r,r).
 datatypeSubsumes(T,T).
 datatypeSubsumes(Sub,Super) :- xsdParent(Sub,Parent), datatypeSubsumes(Parent,Super).
 
@@ -466,9 +467,9 @@ nbasetypeElt(literal(T),rdf:'PlainLiteral', Reason) :-
 nbasetypeElt(X,rdf:'Literal', Reason) :-
     literal(_) \= X, term_to_atom(X,T)
     ->   
-    Reason = [reason='Not a well formed rdf:PlainLiteral',
+    Reason = [reason='Not a well formed rdf:Literal',
 	      literal=T,
-	      type='rdf:PlainLiteral'].
+	      type='rdf:Literal'].
 
 %% %% nbasetypeElt(rdf:'PlainLiteral').
 %% %% nbasetypeElt(rdf:'Literal').
