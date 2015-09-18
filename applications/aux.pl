@@ -1,6 +1,7 @@
 :- module(aux,[]).
 :- use_module(library(semweb/rdf_db)).
 :- use_module(schemaRules).
+:- use_module(datatypes).
 
 % This file carries auxilliary predicates that need to be used
 % for reasoning tests.

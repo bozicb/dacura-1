@@ -1,21 +1,10 @@
 :- module(datatypes,[]).
 :- use_module(library(semweb/rdf_db)).
 :- use_module(xsdParser).
+:- use_module(library(uri)).
 
-datatypeSubumes(_,_).
+datatypeSubsumes(_,_).
 
-%% 1. January - 31 days
-%% 2. February - 28 days; 29 days in Leap Years
-%% 3. March - 31 days
-%% 4. April - 30 days
-%% 5. May - 31 days
-%% 6. June - 30 days
-%% 7. July - 31 days
-%% 8. August - 31 days
-%% 9. September - 30 days
-%% 10. October - 31 days
-%% 11. November - 30 days
-%% 12. December - 31 days
 daysInMonth(_,1,31).
 daysInMonth(Y,2,D) :- Ans is Y mod 4, Ans = 0 -> D = 29 ; D = 28 .
 daysInMonth(_,3,31).
@@ -31,49 +20,50 @@ daysInMonth(_,12,31).
 
 :- rdf_meta nbasetypeElt(r,r,t).
 nbasetypeElt(literal(S),xsd:string,Reason) :-
-    \+ atom(S), term_to_atom(S,A),
+    \+ atom(S), term_to_atom(S,A)
     ->
     Reason = [reason='Expected atom, found term',
 	      literal=A].
 nbasetypeElt(literal(lang(S,L)),xsd:string,Reason) :-
-    \+ atom(S), term_to_atom(lang(S,L),A),
+    \+ atom(S), term_to_atom(lang(S,L),A)
     ->
     Reason = [reason='Expected atom in string section, found term.',
 	      literal=A].
 nbasetypeElt(literal(lang(S,L)),xsd:string,Reason) :-
-    \+ atom(L), term_to_atom(lang(S,L),A),
+    \+ atom(L), term_to_atom(lang(S,L),A)
     ->
     Reason = [reason='Expected atom in language section, found term.',
 	      literal=A].
 nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
-    \+ atom(S), term_to_atom(type(T,S),A),
+    \+ atom(S), term_to_atom(type(T,S),A)
+    ->
     Reason = [reason='Expected atom, found term as element.',
 	      literal=A].
 nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
-    \+ atom(T), term_to_atom(type(T,S),A),
+    \+ atom(T), term_to_atom(type(T,S),A)
     ->
     Reason = [reason='Expected atom, found term as type.',
 	      literal=A].
 nbasetypeElt(literal(type(T1,_)),T2,Reason) :-
-    \+ dataTypeSubsumes(T1,T2), term_to_atom(T1,A), term_to_atom(T2,B),
+    \+ datatypeSubsumes(T1,T2), term_to_atom(T1,A), term_to_atom(T2,B)
     ->
     Reason = [reason='Could not subsume type1 with type2',
 	      type1=A,
 	      type2=B].
 nbasetypeElt(literal(type(_,S)),xsd:boolean,Reason) :-
-    \+ member(S,['true','false','1','0']), term_to_atom(S,A),
+    \+ member(S,['true','false','1','0']), term_to_atom(S,A)
     ->
     Reason = [reason='Not a well formed boolean.',
 	      literal=A,
 	      type='xsd:boolean'].
 nbasetypeElt(literal(type(_,S)),xsd:decimal,Reason) :-
-    \+ (atom_codes(S,C), phrase(xsdParser:decimal,C,[])),
+    \+ (atom_codes(S,C), phrase(xsdParser:decimal(_),C,[]))
     ->
     Reason = [reason='Not a well formed decimal.',
 	      literal=S,
 	      type='xsd:decimal'].
 nbasetypeElt(literal(type(_,S)),xsd:integer, Reason) :-
-    \+ (atom_codes(S,C), phrase(xsdParser:integer,C,[])),
+    \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
     ->
     Reason = [reason='Not a well formed integer.',
 	      literal=S,
@@ -92,14 +82,14 @@ nbasetypeElt(literal(type(_,S)),xsd:double, Reason) :-
 	      literal=S,
 	      type='xsd:double'].
 nbasetypeElt(literal(type(_,S)),xsd:double, Reason) :-
-    atom_codes(S,C), phrase(xsdParser:double(M,E,T),C,[]),
-    (E > 970 ; E < -1075),
+    atom_codes(S,C), phrase(xsdParser:double(_,E,_),C,[]),
+    (E > 970 ; E < -1075)
     ->
     Reason = [reason='Not a well formed double: exponent excessive.',
 	      literal=S,
 	      type='xsd:double'].
-nbasetypeEltx(literal(type(_,S)),xsd:float,Reason) :-
-    \+ (atom_codes(S,C), phrase(xsdParser:double(_,_,_),C,[])),
+nbasetypeElt(literal(type(_,S)),xsd:float,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:double(_,_,_),C,[]))
     ->
     Reason = [reason='Not a well formed float.',
 	      literal=S,
@@ -132,7 +122,7 @@ nbasetypeElt(literal(type(_,S)),xsd:time, Reason) :-
 	      literal=S,
 	      type='xsd:time'].
 nbasetypeElt(literal(type(_,S)),xsd:dateTime, Reason) :-
-    \+ (atom_codes(S,C), phrase(xsdParser:dateTime(_,_,_,_,_,_,_,_,_),C,[])),
+    \+ (atom_codes(S,C), phrase(xsdParser:dateTime(_,_,_,_,_,_,_,_,_),C,[]))
     ->
     Reason = [reason='Not a well formed xsd:dateTime.',
 	      literal=S,
@@ -148,7 +138,7 @@ nbasetypeElt(literal(type(_,S)),xsd:dateTime, Reason) :-
 	      literal=S,
 	      type='xsd:dateTime'].
 nbasetypeElt(literal(type(_,S)),xsd:gYear, Reason) :-
-    \+ (atom_codes(S,C), phrase(xsdParser:gYear(_,_,_,_),C,[])),
+    \+ (atom_codes(S,C), phrase(xsdParser:gYear(_,_,_,_),C,[]))
     ->
     Reason = [reason='Not a well formed xsd:gYear',
 	      literal=S,
@@ -161,7 +151,7 @@ nbasetypeElt(literal(type(_,S)),xsd:gYear, Reason) :-
 	      literal=S,
 	      type='xsd:gYear'].
 nbasetypeElt(literal(type(_,S)),xsd:gMonth, Reason) :-
-    \+ (atom_codes(S,C), phrase(xsdParser:gMonth(_,_,_,_),C,[])),
+    \+ (atom_codes(S,C), phrase(xsdParser:gMonth(_,_,_,_),C,[]))
     ->
     Reason = [reason='Not a well formed xsd:Month',
 	      literal=S,
@@ -193,7 +183,7 @@ nbasetypeElt(literal(type(_,S)),xsd:gYearMonth, Reason) :-
 	      literal=S,
 	      type='xsd:gYearMonth'].
 nbasetypeElt(literal(type(_,S)),xsd:gYearMonth, Reason) :-
-    atom_codes(S,C), phrase(xsdParser:gYearMonth(Y,M,Z,ZH,ZM),C,[]),
+    atom_codes(S,C), phrase(xsdParser:gYearMonth(_,M,Z,ZH,ZM),C,[]),
     (M > 12 ; M < 1 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
     ->
     Reason = [reason='Not a well formed xsd:gYearMonth : parameters out of range',
@@ -213,13 +203,13 @@ nbasetypeElt(literal(type(_,S)),xsd:gMonthDay, Reason) :-
 	      literal=S,
 	      type='xsd:gMonthDay'].
 nbasetypeElt(literal(type(_,S)),xsd:duration, Reason) :-
-    \+ (atom_codes(S,C), phrase(xsdParser:duration(_,_,_,_,_),C,[]))
+    \+ (atom_codes(S,C), phrase(xsdParser:duration(_,_,_,_,_,_,_),C,[]))
     ->   
     Reason = [reason='Not a well formed xsd:duration',
 	      literal=S,
 	      type='xsd:duration'].
 nbasetypeElt(literal(type(_,S)),xsd:yearMonthDuration, Reason) :-
-    \+ (atom_codes(S,C), phrase(xsdParser:yearMonthDuration(_,_,_,_,_),C,[]))
+    \+ (atom_codes(S,C), phrase(xsdParser:yearMonthDuration(_,_,_),C,[]))
     ->   
     Reason = [reason='Not a well formed xsd:yearMonthDuration',
 	      literal=S,
@@ -365,9 +355,19 @@ nbasetypeElt(literal(type(_,S)),xsd:nonPositiveInteger, Reason) :-
     Reason = [reason='Not a well formed xsd:nonPositiveInteger',
 	      literal=S,
 	      type='xsd:nonPositiveInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:base64Binary, Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:base64Binary,C,[]))
+    ->   
+    Reason = [reason='Not a well formed xsd:base64Binary',
+	      literal=S,
+	      type='base64Binary'].
+nbasetypeElt(literal(type(_,S)),xsd:anyURI, Reason) :-
+    \+ uri_components(anyURI,_)
+    ->   
+    Reason = [reason='Not a well formed xsd:anyUri',
+	      literal=S,
+	      type='base64Binar'].
 
-%% %% nbasetypeElt(xsd:base64Binary).
-%% %% nbasetypeElt(xsd:anyURI). 
 %% %% nbasetypeElt(xsd:language). 
 %% %% nbasetypeElt(xsd:normalizedString). 
 %% %% nbasetypeElt(xsd:token). 

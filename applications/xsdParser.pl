@@ -1,4 +1,13 @@
-:- module(xsdParser,[decimal/3, digits/3, integer/3, double/5]).
+:- module(xsdParser,[decimal/3, digits/3, integer/3, double/5,
+		     positiveInteger/3, nonPositiveInteger/3, nonNegativeInteger/3,
+		     unsignedDecimal/3, year/3, dateTime/11,
+		     gYear/6, gYearMonth/7, gMonth/6, gMonthDay/7,
+		     gDay/6, duration/9, yearMonthDuration/5,
+		     dayTimeDuration/7,
+		     base64Binary/2, language/2]).
+
+%:- use_module(iso_639).
+:- use_module(iana).
 
 sign(1) --> "+".
 sign(-1) --> "-".
@@ -17,6 +26,7 @@ digit("8") --> "8".
 digit("9") --> "9".
 
 twoDigitNatural(N) --> digit(A), digit(B), { string_concat(A,B,C), number_string(N,C) } . 
+
 fourDigitNatural(N) --> digit(A), digit(B), digit(C), digit(D),
 			{ string_concat(A,B,S1), string_concat(S1,C,S2), string_concat(S2,D,S3), number_string(N,S3) } . 
     
@@ -43,13 +53,13 @@ nonNegativeInteger(I) --> natural(I) .
 nonNegativeInteger(I) --> "+", natural(I) .
 nonNegativeInteger(0) --> "-0" .
 
-decimal(M) --> integer(M) .
 decimal(M) --> integer(I), fullstop, digits(S),
 	       { string_concat("0.", S, T), number_string(E,T), M is I + E } .
+decimal(M) --> integer(M) .
 
-unsignedDecimal(M) --> natural(M) .
 unsignedDecimal(M) --> natural(I), fullstop, digits(S),
 		       { string_concat("0.", S, T), number_string(E,T), M is I + E } .
+unsignedDecimal(M) --> natural(M) .
 
 exp --> "e" .
 exp --> "E" .
@@ -128,8 +138,17 @@ space --> "\r" .
 base64char --> "+" .
 base64char --> "/" .
 
-alpha([H|T],T) :- H > 64, H < 91. 
+charRange(First,Last,[H|T],T) :- atom_codes(First,[Start]), atom_codes(Last,[End]),
+				 H >= Start, H =< End .
 
+alphaUpper --> charRange('A','Z') .
+
+alphaLower --> charRange('a','z') .
+
+alpha --> alphaUpper .
+alpha --> alphaLower .
+
+alphas --> alphas, alpha .
 alphas --> alpha .
 
 whitespace --> space, whitespace .
@@ -139,15 +158,39 @@ base64elt --> alpha .
 base64elt --> base64char .
 base64elt --> digit(_) .
 
-base64
-equals --> "=" .
-equals --> "=" , equals
+oneOf(Chars,[H|T],T) :- atom_codes(Chars,Codes),member(H,Codes) .
 
-base64(Pad) --> whitespace, base64elt(Pad),
-		whitespace, base64elt(Pad),
-		whitespace, base64elt(Pad),
-		whitespace, base64elt(Pad).
-base64(_) --> whitespace .
-		
-		 
+base64elt1 --> oneOf('AEIMQUYcgkosw048') .
+base64elt2 --> oneOf('AQgw') .
+
+equals --> "=" .
+
+base64Terminates --> whitespace, base64elt,
+		     whitespace, base64elt,
+		     whitespace, base64elt,
+		     whitespace, base64elt .
+base64Terminates --> whitespace, base64elt,
+		     whitespace, base64elt2,
+		     whitespace, equals, 
+		     whitespace, equals .
+base64Terminates --> whitespace, base64elt,
+		     whitespace, base64elt,
+		     whitespace, base64elt1,
+		     whitespace, equals .
+
+base64Binary --> whitespace, base64elt,
+		 whitespace, base64elt,
+		 whitespace, base64elt,
+		 whitespace, base64elt ,
+		 base64Binary .
+base64Binary --> base64Terminates .
+
+iso_639_base([H1,H2,H3|T],T) :- atom_codes(A,[H1,H2,H3]), iso_639_3(A,_), !.
+iso_639_base([H1,H2,H3|T],T) :- atom_codes(A,[H1,H2,H3]), iso_639_2(A,_).
+
+language --> "en-US" .
+language --> "en-GB" .
+language --> iso_639_base .
+language --> iana(_) . % IANA
+language --> "x-", alphas . % unregistered
 
