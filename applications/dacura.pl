@@ -16,9 +16,8 @@
 :- use_module(library(semweb/rdf_db)).
 :- use_module(library(semweb/rdf_label)).
 :- use_module(library(semweb/rdf_persistency)).
-:- use_module(schemaRules).
+:- use_module(checker).
 :- use_module(test).
-:- use_module(aux).
 
 % Logging / Turn off for production
 :- use_module(library(http/http_log)).

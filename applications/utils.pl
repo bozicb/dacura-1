@@ -58,12 +58,12 @@ interpolate([],'').
 interpolate([H|T],S) :-
     atom(H),
     interpolate(T,Rest),
-    atom_concat(H,Rest,S) .
+    atom_concat(H,Rest,S) , !.
 interpolate([H|T],S) :-
     string(H), atom_string(C,H),
     interpolate(T,Rest),
-    atom_concat(C,Rest,S) .
+    atom_concat(C,Rest,S) , !.
 interpolate([H|T],S) :- 
-    ground(H), atom_to_term(C,H),
+    ground(H), term_to_atom(H,C),
     interpolate(T,Rest) ,
-    atom_concat(C,Rest,S) .
+    atom_concat(C,Rest,S) , !.
