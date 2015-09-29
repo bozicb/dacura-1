@@ -16,19 +16,25 @@
 
 %%%% Schema tests
 %%%% must be pred/2 and have argument list (Schema,Reason)
+%%%% Names should be ([A-Z]|[a-z])+SC (Schema Constraint)
 
-% These must pass for us to continue otherwise we'll get infinite computations. 
-preTestSchema(classCycle).
-preTestSchema(propertyCycle).
-
-testSchema(notUniqueClass).
-testSchema(notUniqueProperty).
-testSchema(orphanSubClass).
-testSchema(orphanSubProperty). 
-testSchema(schemaBlankNode).
-% This needs to be fixed to deal with subsumption correctly
-testSchema(invalidRange). 
-testSchema(invalidDomain).
+% Required best practice
+preTestSchema(classCycleSC).
+preTestSchema(propertyCycleSC).
+% best practice
+testSchema(noImmediateDomainSC).
+testSchema(noImmediateRangeSC).
+testSchema(noUniqueClassLabelSC).
+testSchema(notUniqueClassSC).
+testSchema(notUniquePropertySC).
+testSchema(schemaBlankNodeSC).
+% OWL DL
+testSchema(orphanClassSC).
+testSchema(orphanPropertySC). 
+testSchema(invalidRangeSC). 
+testSchema(invalidDomainSC).
+testSchema(domainNotSubsumedSC).
+testSchema(rangeNotSubsumedSC).
 
 %%%% Instance Tests
 %%%% Local testing for violation of specific known elements in update.
@@ -58,9 +64,9 @@ runUpdate([XU,YU,ZU,Action,G]) :-
 
 runDelta(Delta,Witnesses) :-
     getKey(deletes, Delta, Deletes, []),
-    exclude(schemaRules:runDelete,Deletes,Witnesses), !, % do not backtrack!
+    exclude(checker:runDelete,Deletes,Witnesses), !, % do not backtrack!
     getKey(inserts, Delta, Inserts, []),
-    maplist(schemaRules:runInsert,Inserts), !. % do not backtrack!
+    maplist(checker:runInsert,Inserts), !. % do not backtrack!
 
 failure_witness([],[]).
 failure_witness(DeleteFailures,DeleteWitness) :-
@@ -91,8 +97,8 @@ schemaTest(Pragma,Schema,Reason) :-
 
 runSchemaValidation(Pragma,Witnesses) :-
     getKey(schema, Pragma, Schema, 'schema'),
-    findall(json(Reason), schemaRules:preSchemaTest(Pragma, Schema, Reason), Witnesses) -> true
-    ; findall(json(Reason), schemaRules:schemaTest(Pragma, Schema, Reason), Witnesses).
+    (findall(json(Reason), checker:preSchemaTest(Pragma, Schema, Reason), Witnesses) -> true
+     ; findall(json(Reason), checker:schemaTest(Pragma, Schema, Reason), Witnesses)).
 
 
 instanceValidator(Delta,Pragma,Reason) :-
@@ -121,7 +127,7 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
     % first perform update.
     runDelta(Delta,DeleteFailures),
     failure_witness(DeleteFailures,DeleteWitness),
-    (setof(json(W), schemaRules:instanceValidator(Delta,Pragma,W), ValidationWitnessesX)
+    (setof(json(W), checker:instanceValidator(Delta,Pragma,W), ValidationWitnessesX)
 	  *-> ValidationWitnesses = ValidationWitnessesX ; ValidationWitnesses=[]),
     append(ValidationWitnesses, DeleteWitness, Witnesses),
     getKey(instance, Pragma, Instance, 'instance'), 
@@ -132,7 +138,7 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
     ).
 
 runInstanceValidation(Delta,Pragma,Witnesses) :-
-    findall(json(W), schemaRules:instanceValidator(Delta,Pragma,W), Witnesses).
+    findall(json(W), checker:instanceValidator(Delta,Pragma,W), Witnesses).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Instance / Schema Updates
@@ -160,7 +166,7 @@ runSchemaUpdate(Delta, Pragma, Witnesses) :-
 % TODO: Change this to local instance validation with free parameters!!!
 % Maybe fixed?
 fullInstanceValidator(Pragma,Reason) :- 
-    testLocal(Test),
+    edgeConstraints(Test),
     member(tests=TList,Pragma),
     (all=TList 
      *-> true

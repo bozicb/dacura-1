@@ -1,4 +1,4 @@
-:- module(datatypes,[datatypeSubsumes/2,nbasetypeElt/3]).
+:- module(datatypes,[datatypeSubsumes/2,nbasetypeElt/3, baseType/1]).
 :- use_module(library(semweb/rdf_db)).
 :- use_module(xsdParser).
 :- use_module(library(uri)).

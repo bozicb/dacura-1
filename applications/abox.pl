@@ -1,10 +1,27 @@
-:- module(abox,[invalidEdge/6]).
+:- module(abox,[
+		%% Predicates
+		
+		%%%% IC = Instance Constraints 
+		%% Constraints must be pred/6 
+		%% Best practice
+		noPropertyDomainIC/6,
+		noPropertyRangeIC/6,
+		instanceBlankNodeIC/6,
+
+		%% OWL DL (Constraint)
+		invalidEdgeIC/6,
+		edgeOrphanInstanceIC/6,
+		notFunctionalPropertyIC/6,
+		notInverseFunctionalPropertyIC/6,
+		localOrphanPropertyIC/6
+	       ]).
 
 :- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils). 
-:- use_module(datatype).
+:- use_module(datatypes).
+:- use_module(tbox).
 
 % X is invalid at C for Reason
 :- rdf_meta invalid(r,r,o,o,t).
@@ -125,7 +142,7 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
     atom_number(CardStr,N),
     card(X,OP,_,Instance,Schema,M),
     N < M, atom_number(A,M),
-    Reason = [error=error=notRestrictionElement,
+    Reason = [error=notRestrictionElement,
 	      message='Cardinality too large on restriction class',
 	      element=X,
 	      cardinality=A,
@@ -192,7 +209,7 @@ nelt(X,CP,Instance,Schema,Reason) :-
 		 element=X,
 		 class=CP,
 		 instanceClass=CC]).
-nelt(X,CP,Instance,Schema,Reason) :-
+nelt(X,CP,_,_,Reason) :-
     nbasetypeElt(X,CP,Reason).
 
 %nrange(P,R,Schema) :- rdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,Schema).
@@ -201,15 +218,15 @@ instanceClass(X, Y, Instance) :- rdf(X, rdf:type, Y, Instance).
 orphanInstance(X,C,Instance,Schema) :- instanceClass(X,C,Instance), \+ class(C,Schema).
 
 :- rdf_meta edgeOrphanInstance(r,r,r,o,o,t).
-edgeOrphanInstance(X,P,Y,Instance,Schema,Reason) :-
+edgeOrphanInstanceIC(X,P,Y,Instance,_,Reason) :-
     rdf(X,P,Y,Instance), % Added
-    \+ instanceClass(X, _),
+    \+ instanceClass(X, _, Instance),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
 	    subject=X,
 	    predicate=P,
 	    object=Y].
-edgeOrphanInstance(X,P,Y,Instance,Schema,Reason) :-
+edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
     orphanInstance(X,C,Instance,Schema),
     Reason=[error=edgeOrphanInstance,
@@ -218,16 +235,16 @@ edgeOrphanInstance(X,P,Y,Instance,Schema,Reason) :-
 	    predicate=P,
 	    object=Y,
 	    class=C].
-edgeOrphanInstance(X,P,Y,Instance,Schema,Reason) :-
+edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
     objectProperty(P,Schema),
-    \+ instanceClass(Y, _),
+    \+ instanceClass(Y, _, Instance),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
 	    subject=X,
 	    predicate=P,
 	    object=Y].
-edgeOrphanInstance(X,P,Y,Instance,Schema,Reason) :-
+edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
     objectProperty(P,Schema),
     orphanInstance(Y,C,Instance,Schema),
@@ -240,45 +257,45 @@ edgeOrphanInstance(X,P,Y,Instance,Schema,Reason) :-
 	       
 % The triple (X,P,Y) comes from the Herbrand base.
 :- rdf_meta invalidEdge(r,r,r,o,o,t).
-noPropertyDomain(X,P,Y,Instance,Schema,Reason) :-
+noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
-    subsumptionPropertiesOf(P,SuperP),
-    \+ domain(SuperP,C,Schema),
+    subsumptionPropertiesOf(P,SuperP,Schema),
+    \+ domain(SuperP,_,Schema),
     Reason = [error=noPropertyDomain,
 	      message=='Property has no well defined domain.',
 	      subject=X,
 	      predicate=SuperP,
 	      object=Y].
 
-noPropertyRange(X,P,Y,Instance,Schema,Reason) :-
+noPropertyRangeIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
-    subsumptionPropertiesOf(P,SuperP).
-    \+ range(SuperP,C,Schema),
+    subsumptionPropertiesOf(P,SuperP,Schema),
+    \+ range(SuperP,_,Schema),
     Reason = [error=invalidEdge,
 	      message='Property has no well defined range.',
 	      subject=X,
 	      predicate=SuperP,
 	      object=Y].
 
-invalidEdge(X,P,Y,Instance,Schema,Reason) :-
+invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
-    subsumptionPropertiesOf(P,SuperP).
+    subsumptionPropertiesOf(P,SuperP,Schema),
     domain(SuperP,D,Schema),
-    nelt(X,D,Instance,Scheama,Reason).
-invalidEdge(X,P,Y,Instance,Schema,Reason) :-
+    nelt(X,D,Instance,Schema,Reason).
+invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
-    subsumptionPropertiesOf(P,SuperP).
+    subsumptionPropertiesOf(P,SuperP,Schema),
     range(SuperP,R,Schema),
-    nelt(Y,R,Instance,Scheama,Reason).
-invalidEdge(X,P,Y,Instance,Schema,Reason) :-
+    nelt(Y,R,Instance,Schema,Reason).
+invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     %% we need to check range/ domain of deleted predicates to make sure the cardinality
     %% is still respected
     \+ rdf(X,P,Y,Instance), % Deleted
-    subsumptionPropertiesOf(P,SuperP),
-    restrictionOnProperty(CR,P,Schema),
+    subsumptionPropertiesOf(P,SuperP,Schema),
+    restrictionOnProperty(CR,SuperP,Schema),
     neltRestriction(_,CR,Instance,Schema,Reason).
 
-notFunctionalProperty(X,P,Y,Instance,Schema,Reason) :-
+notFunctionalPropertyIC(X,P,_,Instance,Schema,Reason) :-
     functionalProperty(P,Schema),
     card(X,P,_,Instance,Schema,N),
     (N \= 1 ; N \= 0),
@@ -286,9 +303,20 @@ notFunctionalProperty(X,P,Y,Instance,Schema,Reason) :-
     Reason = [error=functionalPropertyError,
 	      subject=X,
 	      predicate=P,
-	      message=M].
+	      message=Message].
 
-localOrphanProperty(X,P,Y,Instance,Schema,Reason) :-
+notInverseFunctionalPropertyIC(X,P,Y,Instance,Schema,Reason) :-
+    inverseFunctionalProperty(P,Schema),
+    card(_,P,Y,Instance,Schema,N),
+    (N \= 1 ; N \= 0),
+    interpolate(['Functional Property ',P,' is not functional.'],Message),
+    Reason = [error=functionalPropertyError,
+	      subject=X,
+	      predicate=P,
+	      object=Y,
+	      message=Message].
+
+localOrphanPropertyIC(X,P,Y,_Instance,Schema,Reason) :-
     \+ property(P,Schema),
     interpolate(['No property class associated with property: ',P,'.'],Message),
     Reason=[error=noInstancePropertyClass,
@@ -301,29 +329,21 @@ instanceSubjectBlankNode(X,Instance,_) :- rdf(X,_,_,Instance), rdf_is_bnode(X).
 instancePredicateBlankNode(Y,Instance,_) :- rdf(_,Y,_,Instance), rdf_is_bnode(Y).
 instanceObjectBlankNode(Z,Instance,_) :- rdf(_,_,Z,Instance), rdf_is_bnode(Z).
 
-instanceBlankNode(Instance,Schema,Reason) :-
+instanceBlankNodeIC(X,_P,_Y,Instance,Schema,Reason) :-
     instanceSubjectBlankNode(X,Instance,Schema),
     interpolate(['The subject ', X, ' is a blank node'],Message),
     Reason=[error=instanceBlankNode,
 	    message=Message,
 	    subject=X].
-instanceBlankNode(Instance,Schema,Reason) :-
+instanceBlankNodeIC(_,X,_,Instance,Schema,Reason) :-
     instancePredicateBlankNode(X,Instance,Schema),
     interpolate(['The predicate ', X, ' is a blank node'],Message),
     Reason=[error=instanceBlankNode,
 	    message=Message,
 	    predicate=X].
-instanceBlankNode(Instance,Schema,Reason) :-
+instanceBlankNodeIC(_,_,X,Instance,Schema,Reason) :-
     instanceObjectBlankNode(X,Instance,Schema),
     interpolate(['The object ', X, ' is a blank node'],Message),
     Reason=[error=instanceBlankNode,
 	    message=Message,
 	    object=X].		
-
-edgeConstraints(edgeOrphanInstance). 
-edgeConstraints(noPropertyDomain).
-edgeConstraints(noPropertyRange).
-edgeConstraints(invalidEdge).
-edgeConstraints(localOrphanProperty).
-edgeConstraints(notFunctionalProperty).
-edgeConstraints(instanceBlankNode).

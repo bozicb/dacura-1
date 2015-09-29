@@ -4,7 +4,7 @@
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils).
-:- use_module(schemaRules).
+:- use_module(checker).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Test harness.

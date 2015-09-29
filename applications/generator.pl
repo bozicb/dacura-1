@@ -1,6 +1,6 @@
 :- module(generator,[]).
 
-:- use_module(schemaRules). 
+:- use_module(checker). 
 
 :- rdf_meta (t,o).
 nameIt(R,Name) :-

@@ -1,4 +1,7 @@
-:- module(utils,[getKey/4, count/3, path_end/2, render/2, convert_quads/2, json_to_literal/2]).
+:- module(utils,[
+	         getKey/4, count/3, path_end/2, render/2, convert_quads/2, json_to_literal/2,
+		 interpolate/2
+		]).
 
 % convenience functions
 getKey(Key,Assoc,Val,Default) :- 
