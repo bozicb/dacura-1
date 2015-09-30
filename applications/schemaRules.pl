@@ -71,10 +71,10 @@ classCycleHelp(C,S,[K|P],Schema) :- class(C,Schema), subClass(K,C,Schema),
 
 classCycle(C,P,Schema,Reason) :-
     empty_assoc(S), classCycleHelp(C,S,P,Schema),
-    interpolate(['Class, ',CC,' has a class cycle with path: ', P], Message),
+    interpolate(['Class, ',C,' has a class cycle with path: ', P], Message),
     Reason = [error=classCycle,
 	      message=Message,
-	      class=CC,
+	      class=C,
 	      path=P].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -24,7 +24,7 @@ preTestSchema(propertyCycleSC).
 % best practice
 testSchema(noImmediateDomainSC).
 testSchema(noImmediateRangeSC).
-testSchema(noUniqueClassLabelSC).
+testSchema(notUniqueClassLabelSC).
 testSchema(notUniqueClassSC).
 testSchema(notUniquePropertySC).
 testSchema(schemaBlankNodeSC).
@@ -39,13 +39,17 @@ testSchema(rangeNotSubsumedSC).
 %%%% Instance Tests
 %%%% Local testing for violation of specific known elements in update.
 %%%% must be pred/6 and have argument list (X,P,Y,Instance,Schema,Reason)
-edgeConstraints(edgeOrphanInstance).
-edgeConstraints(noPropertyDomain).
-edgeConstraints(noPropertyRange).
-edgeConstraints(invalidEdge).
-edgeConstraints(localOrphanProperty).
-edgeConstraints(notFunctionalProperty).
-edgeConstraints(instanceBlankNode).
+%% best Practice
+edgeConstraints(noPropertyDomainIC).
+edgeConstraints(noPropertyRangeIC).
+edgeConstraints(instanceBlankNodeIC).
+%% OWL DL (Constraint)
+edgeConstraints(invalidEdgeIC).
+edgeConstraints(edgeOrphanInstanceIC).
+edgeConstraints(notFunctionalPropertyIC).
+edgeConstraints(notInverseFunctionalPropertyIC).
+edgeConstraints(localOrphanPropertyIC).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Deltas 
@@ -88,17 +92,19 @@ preSchemaTest(Pragma,Schema,Reason) :-
 
 schemaTest(Pragma,Schema,Reason) :-
     testSchema(Test),
-    nl,write(Test),nl,	
     member(tests=TList,Pragma), 
     (all=TList 
      *-> true
      ;  member(Test, TList)),
+    %nl,write(Test),nl,	
     call(Test, Schema, Reason).
 
 runSchemaValidation(Pragma,Witnesses) :-
     getKey(schema, Pragma, Schema, 'schema'),
-    (findall(json(Reason), checker:preSchemaTest(Pragma, Schema, Reason), Witnesses) -> true
-     ; findall(json(Reason), checker:schemaTest(Pragma, Schema, Reason), Witnesses)).
+    findall(json(Reason), checker:preSchemaTest(Pragma, Schema, Reason), WitnessX),
+    (WitnessX = []
+     -> findall(json(Reason), checker:schemaTest(Pragma, Schema, Reason), Witnesses)
+     ; WitnessX = Witnesses).
 
 
 instanceValidator(Delta,Pragma,Reason) :-

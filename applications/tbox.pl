@@ -2,7 +2,8 @@
 	        %%% TBox predicates
 	        class/2, restriction/2, classOrRestriction/2,
 		subClassOf/3, unionOf/3, intersectionOf/3, subClassStrict/3,
-		subsumes/3, dataProperty/2, objectProperty/2, annotationProperty/2,
+		subsumes/3, strictlySubsumes/3,
+		dataProperty/2, objectProperty/2, annotationProperty/2,
 		property/2, subPropertyOf/3, subsumptionPropertiesOf/3,
 		range/3, domain/3, collect/3, functionalProperty/2,
 		inverseFunctionalProperty/2, restrictionOnProperty/3,
@@ -78,16 +79,16 @@ collect(X,[H|T],Graph) :-
 subClassOf(Child,Parent,Schema) :- rdf(Child, rdfs:subClassOf, Parent, Schema).
 
 :- rdf_meta unionOf(r,r,o).
-unionOf(CC,CP,Schema) :-
-    rdf(CP,owl:unionOf,ListObj, Schema),
+unionOf(C,U,Schema) :-
+    rdf(C,owl:unionOf,ListObj, Schema),
     collect(ListObj,L,Schema),
-    member(CC,L).
+    member(U,L).
 
 :- rdf_meta intersectionOf(r,r,o).
-intersectionOf(CC,CP,Schema) :-
-    rdf(CC,owl:intersectionOf,ListObj,Schema),
+intersectionOf(C,I,Schema) :-
+    rdf(C,owl:intersectionOf,ListObj,Schema),
     collect(ListObj,L,Schema),
-    member(CP,L).
+    member(I,L).
 
 :- rdf_meta oneOf(r,r,o).
 oneOf(X,CC,Schema) :-
@@ -106,19 +107,41 @@ subsumes(owl:'Nothing',_,_).
 subsumes(CC,CC,_).
 subsumes(CC,CP,Schema) :-
     subClassOf(CC,CZ,Schema),
-    subsumes(CZ,CP).
+    subsumes(CZ,CP,Schema).
 subsumes(CC,CP,Schema) :-
     unionOf(CZ,CC,Schema),
-    subsumes(CZ,CP).
+    subsumes(CZ,CP,Schema).
 subsumes(CC,CP,Schema) :-
     intersectionOf(CC,CZ,Schema), 
-    subsumes(CZ,CP).
+    subsumes(CZ,CP,Schema).
 subsumes(CC,CP,_) :- % xsd types
     datatypeSubsumes(CC,CP).
 
+% This is a dangerous predicate as you need to have fully instantiated arguments.
+:- rdf_meta strictlySubsumes(r,r,o).
+strictlySubsumes(CC,owl:'Thing',_) :- CC \= owl:'Nothing'.
+strictlySubsumes(owl:'Nothing',CP,_) :- CP \= owl:'Nothing'.
+strictlySubsumes(CC,CP,Schema) :-
+    subClassOf(CC,CP,Schema).
+strictlySubsumes(CC,CP,Schema) :-
+    unionOf(CP,CC,Schema).
+strictlySubsumes(CC,CP,Schema) :-
+    intersectionOf(CC,CP,Schema).
+strictlySubsumes(CC,CP,Schema) :-
+    subClassOf(CC,CZ,Schema),
+    strictlySubsumes(CZ,CP,Schema).
+strictlySubsumes(CC,CP,Schema) :-
+    unionOf(CZ,CC,Schema),
+    strictlySubsumes(CZ,CP,Schema).
+strictlySubsumes(CC,CP,Schema) :-
+    intersectionOf(CC,CZ,Schema), 
+    strictlySubsumes(CZ,CP,Schema).
+strictlySubsumes(CC,CP,_) :- % xsd types
+    datatypeStrictlySubsumes(CC,CP).
+
 orphanClass(X,Y,Schema, Reason) :-
     subClassOf(X,Y,Schema),
-    \+ class(Y,Schema),
+    \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a subclass of a valid class ',Y], Message),
     Reason = [error=notSubClassOfClass,
 	      message=Message,
@@ -126,7 +149,7 @@ orphanClass(X,Y,Schema, Reason) :-
 	      parent=Y].
 orphanClass(X,Y,Schema, Reason) :-
     intersectionOf(X,Y,Schema),
-    \+ class(Y,Schema),
+    \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X, ' is not an intersection of a valid class ',Y], Message),
     Reason = [error=notIntersectionOfClass,
 	      message=Message,
@@ -134,7 +157,7 @@ orphanClass(X,Y,Schema, Reason) :-
 	      parent=Y].
 orphanClass(X,Y,Schema, Reason) :-
     unionOf(X,Y,Schema),
-    \+ class(Y,Schema),
+    \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a union of a valid class ',Y], Message),
     Reason = [error=notUnionOfClass,
 	      message=Message,
@@ -150,35 +173,41 @@ classCycleHelp(C,S,[K|P],Schema) :- class(C,Schema), subClassOf(K,C,Schema),
 
 classCycle(C,P,Schema,Reason) :-
     empty_assoc(S), classCycleHelp(C,S,P,Schema),
-    interpolate(['Class, ',CC,' has a class cycle with path: ', P], Message),
+    interpolate(['Class, ',C,' has a class cycle with path: ', P], Message),
     Reason = [error=classCycle,
 	      message=Message,
-	      class=CC,
+	      class=C,
 	      path=P].
 
-classCycleSC(Schema,Reason) :- classCycle(_,_,Schema,Reason). 
+classCycleSC(Schema,Reason) :- classCycle(_,_,Schema,Reason), !. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Properties
 
+:- rdf_meta rdfsProperty(r).
+rdfsProperty(rdfs:label).
+rdfsProperty(rdfs:comment).
+
 :- rdf_meta dataProperty(r,o).
 dataProperty(P,Schema) :-
     rdf(P,rdf:type,owl:'DataProperty',Schema).
-dataProperty(rdfs:label,_).
-dataProperty(rdfs:comment,_).
+dataProperty(P,_) :- rdfsProperty(P).
 
+:- rdf_meta annotationProperty(r,o).
 annotationProperty(P,Schema) :-
     rdf(P,rdf:type,owl:'AnnotationProperty',Schema).
 
 :- rdf_meta objectProperty(r,o).
 objectProperty(P,Schema) :- 
-    rdf(P,rdf:type,owl:'objectProperty',Schema).
+    rdf(P,rdf:type,owl:'ObjectProperty',Schema).
 objectProperty(P,Schema) :- 
     annotationProperty(P,Schema).
 
+:- rdf_meta functionalProperty(r,o).
 functionalProperty(P,Schema) :-
     rdf(P,rdf:type,owl:'FunctionalProperty',Schema).
 
+:- rdf_meta inverseFunctionalProperty(r,o).
 inverseFunctionalProperty(P,Schema) :-
     rdf(P,rdf:type,owl:'InverseFunctionalProperty',Schema).
 
@@ -211,6 +240,13 @@ subsumptionPropertiesOf(PC,PP,Schema) :-
     subsumptionPropertiesOf(PZ,PP,Schema). 
 subsumptionPropertiesOf(PC,PC,_).
 
+strictSubsumptionPropertiesOf(PC,PP,Schema) :-
+    subPropertyOf(PC, PP, Schema).
+strictSubsumptionPropertiesOf(PC,PP,Schema) :-
+    subPropertyOf(PC, PZ, Schema),
+    subsumptionPropertiesOf(PZ,PP,Schema).
+
+
 orphanProperty(X,Y,Schema,Reason) :-
     subPropertyOf(X,Y,Schema),
     \+ property(Y,Schema),
@@ -239,11 +275,13 @@ propertyCycle(P,PC,Schema,Reason) :-
 propertyCycleSC(Schema,Reason) :- propertyCycle(_,_,Schema,Reason).
 
 :- rdf_meta range(r,r,o).
-range(P,R,Schema) :- rdf(P,rdfs:range,R,Schema). 
+range(P,R,Schema) :- rdf(P,rdfs:range,R,Schema).
+
+:- rdf_meta domain(r,r,o).
 domain(P,D,Schema) :- rdf(P,rdfs:domain,D,Schema).
 
 noImmediateDomainSC(Schema,Reason) :-
-    property(P,Schema),
+    property(P,Schema), \+ rdfsProperty(P),
     \+ domain(P,_,Schema),
     (dataProperty(P,Schema) -> M='Data property '
      ; annotationProperty(P,Schema) -> M='Annotation property '
@@ -254,7 +292,7 @@ noImmediateDomainSC(Schema,Reason) :-
 	      message = Message].
 
 noImmediateRangeSC(Schema,Reason) :-
-    property(P,Schema),
+    property(P,Schema), \+ rdfsProperty(P),
     \+ range(P,_,Schema),
     (dataProperty(P,Schema) -> M='Data property '
      ; annotationProperty(P,Schema) -> M='Annotation property '
@@ -295,8 +333,8 @@ invalidRangeSC(Schema,Reason) :-
 
 domainNotSubsumedSC(Schema,Reason) :-
     property(P,Schema),
-    subsumptionPropertiesOf(P,P2,Schema),
-    domain(P,D,Schema), domain(P2,D2,Schema),
+    strictSubsumptionPropertiesOf(P,P2,Schema),
+    domain(P,D,Schema), domain(P2,D2,Schema), % DDD too many solutions
     \+ subsumes(D, D2, Schema), 
     interpolate(['Invalid domain on property ', P,
 		 ', due to failure of property subsumption.'], Message),
@@ -309,7 +347,7 @@ domainNotSubsumedSC(Schema,Reason) :-
 
 rangeNotSubsumedSC(Schema,Reason) :-
     property(P,Schema),
-    subsumptionPropertiesOf(P,P2,Schema),
+    strictSubsumptionPropertiesOf(P,P2,Schema),
     range(P,R,Schema), range(P2,R2,Schema),
     \+ subsumes(R, R2, Schema), 
     interpolate(['Invalid range on property ', P,

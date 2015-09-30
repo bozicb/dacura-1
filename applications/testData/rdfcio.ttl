@@ -25,7 +25,8 @@
        rdfs:comment """A property which has a domain of a boxed value, convenient because we want 
                        lists to be quite generic over datatypes and objects, hence 
                        datatypes must be boxed.""" ;
-       rdfs:domain :Value .
+       rdfs:domain :Value ;
+       rdfs:range rdf:Literal .
 
 :Container a owl:Class ;
 	rdfs:label "Container" ;
@@ -35,7 +36,9 @@
 :ContainerMembershipProperty a owl:ObjectProperty ;
 	rdfs:label "ContainerMembershipProperty" ;
 	rdfs:comment """The property class of container membership properties
-                     	all of which are sub-properties of 'member'.""" .
+                     	all of which are sub-properties of 'member'.""" ;
+	rdfs:range owl:Thing ;
+	rdfs:domain owl:Thing .
 
 :member a owl:ObjectProperty ;
 	rdfs:label "member" ;
@@ -84,7 +87,8 @@
        rdfs:subPropertyOf :member ;
        rdfs:label "first" ;
        rdfs:comment "The first element of a list." ;
-       rdfs:domain :List .
+       rdfs:domain :List ;
+       rdfs:range owl:Thing .
 
 :hasFirst a owl:Restriction ;
 	  owl:onProperty :first ;
@@ -99,7 +103,9 @@
               rdfs:subPropertyOf :member ;
 	      owl:propertyChain ( :isFollowedBy :first ) ;
 	      rdfs:label "alsoContains" ;
-	      rdfs:comment "Property which reaches the elements of the rest of the list.".
+	      rdfs:comment "Property which reaches the elements of the rest of the list." ;
+	      rdfs:domain :List ;
+	      rdfs:range owl:Thing .
 
 :rest a owl:FunctionalProperty ,
         owl:ObjectProperty ;

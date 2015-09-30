@@ -80,7 +80,7 @@ inferredTransitiveEdge(X,OP,Z,Instance,Schema) :-
 % [ owl:inverseOf, owl:ReflexiveProperty not yet implemented ]
 :- rdf_meta inferredEdge(r,r,r,o,o).
 inferredEdge(X,OP,Y,Instance,Schema) :-
-    rdf(OP,rdf:type,owl:'ObjectProperty', Schema),
+    property(OP, Schema), % rdf(OP,rdf:type,owl:'ObjectProperty', Schema),
     rdf(X,OP,Y,Instance).
 inferredEdge(X,OP,Y,Instance,Schema) :-
     rdf(OP,rdf:type,owl:'TransitiveProperty', Schema),
@@ -259,6 +259,7 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
 :- rdf_meta invalidEdge(r,r,r,o,o,t).
 noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
+    property(P,Schema),
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ domain(SuperP,_,Schema),
     Reason = [error=noPropertyDomain,
@@ -269,6 +270,7 @@ noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
 
 noPropertyRangeIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
+    property(P,Schema),
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ range(SuperP,_,Schema),
     Reason = [error=invalidEdge,
@@ -279,11 +281,13 @@ noPropertyRangeIC(X,P,Y,Instance,Schema,Reason) :-
 
 invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
+    property(P,Schema),
     subsumptionPropertiesOf(P,SuperP,Schema),
     domain(SuperP,D,Schema),
     nelt(X,D,Instance,Schema,Reason).
 invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     rdf(X,P,Y,Instance), % Added
+    property(P,Schema),
     subsumptionPropertiesOf(P,SuperP,Schema),
     range(SuperP,R,Schema),
     nelt(Y,R,Instance,Schema,Reason).
@@ -291,14 +295,16 @@ invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     %% we need to check range/ domain of deleted predicates to make sure the cardinality
     %% is still respected
     \+ rdf(X,P,Y,Instance), % Deleted
+    property(P,Schema),
     subsumptionPropertiesOf(P,SuperP,Schema),
     restrictionOnProperty(CR,SuperP,Schema),
     neltRestriction(_,CR,Instance,Schema,Reason).
 
 notFunctionalPropertyIC(X,P,_,Instance,Schema,Reason) :-
     functionalProperty(P,Schema),
+    rdf(X,P,_,Instance),
     card(X,P,_,Instance,Schema,N),
-    (N \= 1 ; N \= 0),
+    N \= 1,
     interpolate(['Functional Property ',P,' is not functional.'],Message),
     Reason = [error=functionalPropertyError,
 	      subject=X,
@@ -307,8 +313,9 @@ notFunctionalPropertyIC(X,P,_,Instance,Schema,Reason) :-
 
 notInverseFunctionalPropertyIC(X,P,Y,Instance,Schema,Reason) :-
     inverseFunctionalProperty(P,Schema),
+    rdf(_,P,Y,Instance),
     card(_,P,Y,Instance,Schema,N),
-    (N \= 1 ; N \= 0),
+    N \= 1,
     interpolate(['Functional Property ',P,' is not functional.'],Message),
     Reason = [error=functionalPropertyError,
 	      subject=X,
@@ -316,8 +323,9 @@ notInverseFunctionalPropertyIC(X,P,Y,Instance,Schema,Reason) :-
 	      object=Y,
 	      message=Message].
 
-localOrphanPropertyIC(X,P,Y,_Instance,Schema,Reason) :-
-    \+ property(P,Schema),
+localOrphanPropertyIC(X,P,Y,Instance,Schema,Reason) :-
+    rdf(X,P,Y,Instance), \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+    \+ property(P,Schema), 
     interpolate(['No property class associated with property: ',P,'.'],Message),
     Reason=[error=noInstancePropertyClass,
 	    subject=X,
