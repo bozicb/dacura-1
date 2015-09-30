@@ -1,4 +1,4 @@
-:- module(transactionGraph,[rdf/4, rdf_retractall/4, insert/4, update/5, delete/4, commit/1, rollback/1]).
+:- module(transactionGraph,[xrdf/4, insert/4, update/5, delete/4, commit/1, rollback/1]).
 
 :- use_module(library(semweb/rdf_db), except([rdf/4])). 
 
@@ -12,10 +12,12 @@ pos(schema, 'pos-schema') :- !.
 pos(instance, 'pos-instance') :- !.
 pos(A1,A2) :- atom_concat('pos-', A1, A2).
 
-:- rdf_meta rdf(r,r,o,?).
-rdf(X,Y,Z,G) :- pos(G,G2), rdf_db:rdf(X,Y,Z,G2), !.
-rdf(X,Y,Z,G) :- neg(G,G2), rdf_db:rdf(X,Y,Z,G2), !, false.
-rdf(X,Y,Z,G) :- rdf_db:rdf(X,Y,Z,G).
+:- rdf_meta xrdf(r,r,r,?).
+xrdf(X,Y,Z,G) :- (pos(G,GP), rdf_db:rdf(X,Y,Z,GP)    % If in positive graph, return results
+                  *-> true                           % 
+		  ; (neg(G,GN), rdf_db:rdf(X,Y,Z,GN) % If it's not negative
+	             *-> false                       % If it *is* negative, fail
+		     ; rdf_db:rdf(X,Y,Z,G))).        % otherwise bind the rdf result.
 
 % you can safely ignore rdf_meta for understanding this programme
 % it only affects namespace prefix handling.
@@ -59,7 +61,7 @@ commit(G) :-
     pos(G,GP), 
     findall([XP,YP,ZP,GP], rdf_db:rdf(XP,YP,ZP,GP), LP),
     maplist(insert_positive, LP),
-    rdf_db:rdf_retractall(_,_,_,GP), !,
+    rdf_retractall(_,_,_,GP), !,
     neg(G,GN),
     % write("Negative Graph: "),
     % write(GN),nl,
@@ -67,13 +69,13 @@ commit(G) :-
     % write('Retracting: '), nl,
     % write(LN),
     maplist(retract_negative, LN),
-    rdf_db:rdf_retractall(_,_,_,GN), !.
+    rdf_retractall(_,_,_,GN), !.
 
 rollback(G) :-
     pos(G,GP), 
-    rdf_db:rdf_retractall(_,_,_,GP), !,
+    rdf_retractall(_,_,_,GP), !,
     neg(G,GN), 
-    rdf_db:rdf_retractall(_,_,_,GN), !.
+    rdf_retractall(_,_,_,GN), !.
 
 insert_positive([X,Y,Z,GP]) :-
     pos(G,GP),
@@ -81,5 +83,5 @@ insert_positive([X,Y,Z,GP]) :-
     
 retract_negative([X,Y,Z,GN]) :- 
     neg(G,GN), 
-    rdf_db:rdf_retractall(X,Y,Z,G).
+    rdf_retractall(X,Y,Z,G).
 

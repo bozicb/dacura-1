@@ -16,7 +16,7 @@
 		localOrphanPropertyIC/6
 	       ]).
 
-:- use_module(library(semweb/rdf_db), except([rdf/3, rdf/4, rdf_retractall/4])).
+:- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils). 
@@ -29,7 +29,7 @@ invalid(X,CC,Instance,Schema,Reason) :-
     subClassOf(CC,CZ,Schema),
     invalid(X,CZ,Instance,Schema,Reason).
 invalid(X,CC,_,Schema,Reason) :-
-    rdf(CC,rdfs:oneOf,ListObj,Schema),
+    xrdf(CC,rdfs:oneOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     \+ member(X,L),
     Reason = [error=objectInvalidAtClass,
@@ -37,12 +37,12 @@ invalid(X,CC,_,Schema,Reason) :-
 	      element=X,
 	      class=CC].
 invalid(X,CC,Instance,Schema,Reason) :-
-    rdf(CC,owl:intersectionOf,ListObj,Schema),
+    xrdf(CC,owl:intersectionOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     member(C,L),
     invalid(X,C,Instance,Schema, Reason).
 invalid(X,CC,Instance,Schema,Reason) :-
-    rdf(CC,owl:unionOf,ListObj, Schema),
+    xrdf(CC,owl:unionOf,ListObj, Schema),
     collect(ListObj,L,Schema),
     forall(member(C,L),
 	   invalid(X,C,Instance,Schema,_)),
@@ -51,7 +51,7 @@ invalid(X,CC,Instance,Schema,Reason) :-
 	      element=X,
 	      class=CC].
 invalid(X,CC,Instance,Schema, Reason) :-
-    rdf(CC,owl:complementOf,CN,Schema),
+    xrdf(CC,owl:complementOf,CN,Schema),
     \+ invalid(X,CN,Instance,Schema,_),
     Reason = [error=objectInvalidAtClass,
 	      message='Complement is valid',
@@ -72,7 +72,7 @@ runChain(X,[P|PropList],Z,Instance,Schema) :-
 % Impose an ordering to avoid non-termination (subproperty ordering)
 % Concrete links are already in InferredEdge
 inferredTransitiveEdge(X,OP,Z,Instance,Schema) :-
-    rdf(SOP,rdfs:subPropertyOf,OP,Schema),
+    xrdf(SOP,rdfs:subPropertyOf,OP,Schema),
     inferredEdge(X,SOP,Y,Instance,Schema),
     inferredEdge(Y,OP,Z,Instance,Schema).
 
@@ -80,17 +80,17 @@ inferredTransitiveEdge(X,OP,Z,Instance,Schema) :-
 % [ owl:inverseOf, owl:ReflexiveProperty not yet implemented ]
 :- rdf_meta inferredEdge(r,r,r,o,o).
 inferredEdge(X,OP,Y,Instance,Schema) :-
-    property(OP, Schema), % rdf(OP,rdf:type,owl:'ObjectProperty', Schema),
-    rdf(X,OP,Y,Instance).
+    property(OP, Schema), % xrdf(OP,rdf:type,owl:'ObjectProperty', Schema),
+    xrdf(X,OP,Y,Instance).
 inferredEdge(X,OP,Y,Instance,Schema) :-
-    rdf(OP,rdf:type,owl:'TransitiveProperty', Schema),
+    xrdf(OP,rdf:type,owl:'TransitiveProperty', Schema),
     inferredTransitiveEdge(X,OP,Y,Instance,Schema).
 inferredEdge(X,OP,Y,Instance,Schema) :-
-    rdf(OP,owl:propertyChain,ListObj, Schema),
+    xrdf(OP,owl:propertyChain,ListObj, Schema),
     collect(ListObj,PropList,Schema),
     runChain(X,PropList,Y,Instance,Schema).
 inferredEdge(X,OP,Y,Instance,Schema) :- 
-    rdf(SOP,rdfs:subPropertyOf,OP,Schema),
+    xrdf(SOP,rdfs:subPropertyOf,OP,Schema),
     inferredEdge(X,SOP,Y,Instance,Schema).
 
 % X has cardinality N at property OP
@@ -108,8 +108,8 @@ qualifiedCard(X,OP,Y,C,Instance,Schema,N) :-
 % X is not an element of the restriction CR (for Reason)
 :- rdf_meta neltRestriction(r,r,o,o,t).
 neltRestriction(X,CR,Instance,Schema,Reason) :-
-    rdf(CR,owl:onProperty,OP,Schema),
-    rdf(CR,owl:someValuesFrom,C,Schema),
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:someValuesFrom,C,Schema),
     forall(inferredEdge(X,OP,Y,Instance,Schema),
            (\+ nelt(Y,C,Instance,Schema,_))),
     Reason = [error=notRestrictionElement,
@@ -117,8 +117,8 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      element=X,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
-    rdf(CR,owl:onProperty,OP,Schema),
-    rdf(CR,owl:allValuesFrom,C,Schema),
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:allValuesFrom,C,Schema),
     inferredEdge(X,OP,Y,Instance,Schema),
     nelt(Y,C,Instance,Schema,_),
     Reason = [error=notRestrictionElement,
@@ -126,8 +126,8 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      element=X,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
-    rdf(CR,owl:onProperty,OP,Schema),
-    rdf(CR,owl:minCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:minCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
     atom_number(CardStr,N),
     card(X,OP,_,Instance,Schema,M),
     M < N, atom_number(A,M),
@@ -137,8 +137,8 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      cardinality=A,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
-    rdf(CR,owl:onProperty,OP,Schema),
-    rdf(CR,owl:maxCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:maxCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
     atom_number(CardStr,N),
     card(X,OP,_,Instance,Schema,M),
     N < M, atom_number(A,M),
@@ -148,8 +148,8 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      cardinality=A,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
-    rdf(CR,owl:onProperty,OP,Schema),
-    rdf(CR,owl:cardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:cardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
     atom_number(CardStr,N),
     card(X,OP,_,Instance,Schema,M),
     N \= M, atom_number(A,M),
@@ -159,9 +159,9 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      cardinality=A,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
-    rdf(CR,owl:onProperty,OP,Schema),
-    rdf(CR,owl:minQualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
-    rdf(CR,owl:onClass,C,Schema),
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:minQualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:onClass,C,Schema),
     atom_number(CardStr,N),
     qualifiedCard(X,OP,_,C,Instance,Schema,M),
     M < N, atom_number(A,M),
@@ -172,9 +172,9 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      qualifiedOn=C,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
-    rdf(CR,owl:onProperty,OP,Schema),
-    rdf(CR,owl:maxQualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
-    rdf(CR,owl:onClass,C,Schema),
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:maxQualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:onClass,C,Schema),
     atom_number(CardStr,N),
     qualifiedCard(X,OP,_,C,Instance,Schema,M),
     N < M, atom_number(A,M),
@@ -185,9 +185,9 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      qualifiedOn=C,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
-    rdf(CR,owl:onProperty,OP,Schema),
-    rdf(CR,owl:qualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
-    rdf(CR,owl:onClass,C,Schema),
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:qualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:onClass,C,Schema),
     atom_number(CardStr,N),
     qualifiedCard(X,OP,_,C,Instance,Schema,N),
     N \= M, atom_number(A,M),
@@ -201,8 +201,8 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 % X is not an element of CP for Reason
 :- rdf_meta nelt(r,r,o,o,t).
 nelt(X,CP,Instance,Schema,Reason) :-
-    rdf(X, rdf:type, CC, Instance),
-    (tbox:subsumes(CC,CP,Schema) *->
+    xrdf(X, rdf:type, CC, Instance),
+    (subsumptionOf(CC,CP,Schema) *->
        invalid(X,CC,Instance,Schema,Reason)
      ; Reason = [error=doesNotSubsume, 
 		 message='Subsumption Impossible',
@@ -212,14 +212,14 @@ nelt(X,CP,Instance,Schema,Reason) :-
 nelt(X,CP,_,_,Reason) :-
     nbasetypeElt(X,CP,Reason).
 
-%nrange(P,R,Schema) :- rdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,Schema).
+%nrange(P,R,Schema) :- xrdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,Schema).
 
-instanceClass(X, Y, Instance) :- rdf(X, rdf:type, Y, Instance).
+instanceClass(X, Y, Instance) :- xrdf(X, rdf:type, Y, Instance).
 orphanInstance(X,C,Instance,Schema) :- instanceClass(X,C,Instance), \+ class(C,Schema).
 
 :- rdf_meta edgeOrphanInstance(r,r,r,o,o,t).
 edgeOrphanInstanceIC(X,P,Y,Instance,_,Reason) :-
-    rdf(X,P,Y,Instance), % Added
+    xrdf(X,P,Y,Instance), % Added
     \+ instanceClass(X, _, Instance),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
@@ -227,7 +227,7 @@ edgeOrphanInstanceIC(X,P,Y,Instance,_,Reason) :-
 	    predicate=P,
 	    object=Y].
 edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
-    rdf(X,P,Y,Instance), % Added
+    xrdf(X,P,Y,Instance), % Added
     orphanInstance(X,C,Instance,Schema),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance domain class is not valid',
@@ -237,7 +237,7 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
 	    class=C].
 edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     objectProperty(P,Schema),	
-    rdf(X,P,Y,Instance), % Added
+    xrdf(X,P,Y,Instance), % Added
     \+ instanceClass(Y, _, Instance),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
@@ -246,7 +246,7 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
 	    object=Y].
 edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     objectProperty(P,Schema),
-    rdf(X,P,Y,Instance), % Added
+    xrdf(X,P,Y,Instance), % Added
     orphanInstance(Y,C,Instance,Schema),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
@@ -259,7 +259,7 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
 :- rdf_meta invalidEdge(r,r,r,o,o,t).
 noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
     property(P,Schema),
-    rdf(X,P,Y,Instance), % Added
+    xrdf(X,P,Y,Instance), % Added
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ domain(SuperP,_,Schema),
     Reason = [error=noPropertyDomain,
@@ -270,7 +270,7 @@ noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
 
 noPropertyRangeIC(X,P,Y,Instance,Schema,Reason) :-
     property(P,Schema),
-    rdf(X,P,Y,Instance), % Added
+    xrdf(X,P,Y,Instance), % Added
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ range(SuperP,_,Schema),
     Reason = [error=invalidEdge,
@@ -281,20 +281,20 @@ noPropertyRangeIC(X,P,Y,Instance,Schema,Reason) :-
 
 invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     property(P,Schema),
-    rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
+    xrdf(X,P,Y,Instance), % Check to see if we were deleted or added.
     subsumptionPropertiesOf(P,SuperP,Schema),
     domain(SuperP,D,Schema),
     nelt(X,D,Instance,Schema,Reason).
 invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     property(P,Schema),
-    rdf(X,P,Y,Instance), % Added
+    xrdf(X,P,Y,Instance), % Added
     subsumptionPropertiesOf(P,SuperP,Schema),
     range(SuperP,R,Schema),
     nelt(Y,R,Instance,Schema,Reason).
 invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
     %% we need to check range/ domain of deleted predicates to make sure the cardinality
     %% is still respected
-    \+ rdf(X,P,Y,Instance), % Deleted
+    \+ xrdf(X,P,Y,Instance), % Deleted
     property(P,Schema),
     subsumptionPropertiesOf(P,SuperP,Schema),
     restrictionOnProperty(CR,SuperP,Schema),
@@ -302,7 +302,7 @@ invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
 
 notFunctionalPropertyIC(X,P,_,Instance,Schema,Reason) :-
     functionalProperty(P,Schema),
-    rdf(X,P,_,Instance),
+    xrdf(X,P,_,Instance),
     card(X,P,_,Instance,Schema,N),
     N \= 1,
     interpolate(['Functional Property ',P,' is not functional.'],Message),
@@ -313,7 +313,7 @@ notFunctionalPropertyIC(X,P,_,Instance,Schema,Reason) :-
 
 notInverseFunctionalPropertyIC(X,P,Y,Instance,Schema,Reason) :-
     inverseFunctionalProperty(P,Schema),
-    rdf(_,P,Y,Instance),
+    xrdf(_,P,Y,Instance),
     card(_,P,Y,Instance,Schema,N),
     N \= 1,
     interpolate(['Functional Property ',P,' is not functional.'],Message),
@@ -324,7 +324,7 @@ notInverseFunctionalPropertyIC(X,P,Y,Instance,Schema,Reason) :-
 	      message=Message].
 
 localOrphanPropertyIC(X,P,Y,Instance,Schema,Reason) :-
-    rdf(X,P,Y,Instance), \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+    xrdf(X,P,Y,Instance), \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
     \+ property(P,Schema), 
     interpolate(['No property class associated with property: ',P,'.'],Message),
     Reason=[error=noInstancePropertyClass,
@@ -333,9 +333,9 @@ localOrphanPropertyIC(X,P,Y,Instance,Schema,Reason) :-
 	    object=Y,
 	    message=Message].
 
-instanceSubjectBlankNode(X,Instance,_) :- rdf(X,_,_,Instance), rdf_is_bnode(X).
-instancePredicateBlankNode(Y,Instance,_) :- rdf(_,Y,_,Instance), rdf_is_bnode(Y).
-instanceObjectBlankNode(Z,Instance,_) :- rdf(_,_,Z,Instance), rdf_is_bnode(Z).
+instanceSubjectBlankNode(X,Instance,_) :- xrdf(X,_,_,Instance), rdf_is_bnode(X).
+instancePredicateBlankNode(Y,Instance,_) :- xrdf(_,Y,_,Instance), rdf_is_bnode(Y).
+instanceObjectBlankNode(Z,Instance,_) :- xrdf(_,_,Z,Instance), rdf_is_bnode(Z).
 
 instanceBlankNodeIC(X,_P,_Y,Instance,Schema,Reason) :-
     instanceSubjectBlankNode(X,Instance,Schema),

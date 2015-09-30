@@ -4,7 +4,7 @@
 		   runFullValidation/2,
 		   runSchemaValidation/2]).
 
-:- use_module(library(semweb/rdf_db), except([rdf/3, rdf/4, rdf_retractall/4])).
+:- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils).
@@ -135,7 +135,7 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
     uniqueSolns(json(W), checker:instanceValidator(Delta,Pragma,W), ValidationWitnesses),
     append(ValidationWitnesses, DeleteWitness, Witnesses),
     getKey(instance, Pragma, Instance, 'instance'), 
-    (member(commit='true',Pragma),
+    (member(commit=true,Pragma),
      Witnesses = [],
      commit(Instance)	   
      ; rollback(Instance)
@@ -158,7 +158,7 @@ runSchemaUpdate(Delta, Pragma, Witnesses) :-
 
     getKey(schema, Pragma, Schema, 'schema'),
     getKey(schema, Pragma, Instance, 'instance'),
-    (member(commit='true',Pragma),
+    (member(commit=true,Pragma),
      Witnesses = [], 
      commit(Instance), 
      commit(Schema) 

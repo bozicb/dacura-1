@@ -1,5 +1,5 @@
-:- module(datatypes,[datatypeSubsumes/2,		     
-		     datatypeStrictlySubsumes/2,
+:- module(datatypes,[datatypeSubsumptionOf/2,		     
+		     datatypeStrictSubsumptionOf/2,
 		     nbasetypeElt/3, baseType/1]).
 :- use_module(library(semweb/rdf_db)).
 :- use_module(xsdParser).
@@ -138,13 +138,13 @@ baseTypeParent(xsd:duration,xsd:anySimpleType).
   baseTypeParent(xsd:dayTimeDuration,xsd:duration).
   baseTypeParent(xsd:yearMonthDuration,xsd:duration).
 
-:- rdf_meta datatypeSubsumes(r,r).
-datatypeSubsumes(T,T).
-datatypeSubsumes(Sub,Super) :- baseTypeParent(Sub,Parent), datatypeSubsumes(Parent,Super).
+:- rdf_meta datatypeSubsumptionOf(r,r).
+datatypeSubsumptionOf(T,T).
+datatypeSubsumptionOf(Sub,Super) :- baseTypeParent(Sub,Parent), datatypeSubsumptionOf(Parent,Super).
 
-:- rdf_meta datatypeStrictlySubsumes(r,r).
-datatypeStrictlySubsumes(Sub,Super) :- baseTypeParent(Sub,Super).
-datatypeStrictlySubsumes(Sub,Super) :- baseTypeParent(Sub,Parent), datatypeSubsumes(Parent,Super).
+:- rdf_meta datatypeStrictSubsumptionOf(r,r).
+datatypeStrictSubsumptionOf(Sub,Super) :- baseTypeParent(Sub,Super).
+datatypeStrictSubsumptionOf(Sub,Super) :- baseTypeParent(Sub,Parent), datatypeSubsumptionOf(Parent,Super).
 
 daysInMonth(_,1,31).
 daysInMonth(Y,2,D) :- Ans is Y mod 4, Ans = 0 -> D = 29 ; D = 28 .
@@ -191,7 +191,7 @@ nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
 	      message='Expected atom, found term as type.',
 	      literal=A].
 nbasetypeElt(literal(type(T1,_)),T2,Reason) :-
-    \+ datatypeSubsumes(T1,T2)
+    \+ datatypeSubsumptionOf(T1,T2)
     ->
     Reason = [error=nbasetypeElt, 
 	      message='Could not subsume type1 with type2',

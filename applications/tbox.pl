@@ -2,7 +2,7 @@
 	        %%% TBox predicates
 	        class/2, restriction/2, classOrRestriction/2,
 		subClassOf/3, unionOf/3, intersectionOf/3, subClassStrict/3,
-		subsumes/3, strictlySubsumes/3,
+		subsumptionOf/3, strictSubsumptionOf/3,
 		dataProperty/2, objectProperty/2, annotationProperty/2,
 		property/2, subPropertyOf/3, subsumptionPropertiesOf/3,
 		range/3, domain/3, collect/3, functionalProperty/2,
@@ -27,7 +27,7 @@
 		domainNotSubsumedSC/2, rangeNotSubsumedSC/2  % OWL
 	       ]).
 
-:- use_module(library(semweb/rdf_db), except([rdf/3, rdf/4, rdf_retractall/4])).
+:- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils). 
@@ -39,14 +39,14 @@
 
 % All class designations
 :- rdf_meta class(r,o).
-class(X,Schema) :- rdf(X, rdf:type, rdfs:'Class', Schema).
-class(X,Schema) :- rdf(X, rdf:type, owl:'Class', Schema).
+class(X,Schema) :- xrdf(X, rdf:type, rdfs:'Class', Schema).
+class(X,Schema) :- xrdf(X, rdf:type, owl:'Class', Schema).
 class(owl:'Thing',_).
 class(owl:'Nothing',_).
 
-restriction(R,Schema) :- rdf(R, rdf:type, owl:'Restriction', Schema).
+restriction(R,Schema) :- xrdf(R, rdf:type, owl:'Restriction', Schema).
 
-restrictionOnProperty(CR,P,Schema) :- rdf(CR,owl:onProperty,P,Schema), restriction(CR,Schema).
+restrictionOnProperty(CR,P,Schema) :- xrdf(CR,owl:onProperty,P,Schema), restriction(CR,Schema).
 
 classOrRestriction(X,Schema) :- class(X,Schema).
 classOrRestriction(X,Schema) :- restriction(X,Schema).
@@ -70,29 +70,29 @@ notUniqueClassSC(Schema,Reason) :- notUniqueClass(_,Schema,Reason).
 :- rdf_meta collect(r,t,o).
 collect(rdf:nil,[],_).
 collect(X,[H|T],Graph) :-
-    rdf(X,rdf:first,H,Graph),
-    rdf(X,rdf:rest,Y,Graph),
+    xrdf(X,rdf:first,H,Graph),
+    xrdf(X,rdf:rest,Y,Graph),
     collect(Y,T,Graph).
 
 % One step subclassing
 :- rdf_meta subClassOf(r,r,o).
-subClassOf(Child,Parent,Schema) :- rdf(Child, rdfs:subClassOf, Parent, Schema).
+subClassOf(Child,Parent,Schema) :- xrdf(Child, rdfs:subClassOf, Parent, Schema).
 
 :- rdf_meta unionOf(r,r,o).
 unionOf(C,U,Schema) :-
-    rdf(C,owl:unionOf,ListObj, Schema),
+    xrdf(C,owl:unionOf,ListObj, Schema),
     collect(ListObj,L,Schema),
     member(U,L).
 
 :- rdf_meta intersectionOf(r,r,o).
 intersectionOf(C,I,Schema) :-
-    rdf(C,owl:intersectionOf,ListObj,Schema),
+    xrdf(C,owl:intersectionOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     member(I,L).
 
 :- rdf_meta oneOf(r,r,o).
 oneOf(X,CC,Schema) :-
-    rdf(CC,rdfs:oneOf,ListObj,Schema),
+    xrdf(CC,rdfs:oneOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     member(X,L).
 
@@ -101,43 +101,43 @@ subClassStrict(X,Y,Schema) :- subClassOf(X,Y,Schema).
 subClassStrict(X,Z,Schema) :- subClassOf(X,Y,Schema), subClassStrict(Y,Z, Schema).
 
 % Implements class subsumption
-:- rdf_meta subsumes(r,r,o).
-subsumes(_,owl:'Thing',_). % Is this worth throwing in? Might conflict with other constraints
-subsumes(owl:'Nothing',_,_).
-subsumes(CC,CC,_).
-subsumes(CC,CP,Schema) :-
+:- rdf_meta subsumptionOf(r,r,o).
+subsumptionOf(_,owl:'Thing',_). % Is this worth throwing in? Might conflict with other constraints
+subsumptionOf(owl:'Nothing',_,_).
+subsumptionOf(CC,CC,_).
+subsumptionOf(CC,CP,Schema) :-
     subClassOf(CC,CZ,Schema),
-    subsumes(CZ,CP,Schema).
-subsumes(CC,CP,Schema) :-
+    subsumptionOf(CZ,CP,Schema).
+subsumptionOf(CC,CP,Schema) :-
     unionOf(CZ,CC,Schema),
-    subsumes(CZ,CP,Schema).
-subsumes(CC,CP,Schema) :-
+    subsumptionOf(CZ,CP,Schema).
+subsumptionOf(CC,CP,Schema) :-
     intersectionOf(CC,CZ,Schema), 
-    subsumes(CZ,CP,Schema).
-subsumes(CC,CP,_) :- % xsd types
-    datatypeSubsumes(CC,CP).
+    subsumptionOf(CZ,CP,Schema).
+subsumptionOf(CC,CP,_) :- % xsd types
+    datatypeSubsumptionOf(CC,CP).
 
 % This is a dangerous predicate as you need to have fully instantiated arguments.
-:- rdf_meta strictlySubsumes(r,r,o).
-strictlySubsumes(CC,owl:'Thing',_) :- CC \= owl:'Nothing'.
-strictlySubsumes(owl:'Nothing',CP,_) :- CP \= owl:'Nothing'.
-strictlySubsumes(CC,CP,Schema) :-
+:- rdf_meta strictSubsumptionOf(r,r,o).
+strictSubsumptionOf(CC,owl:'Thing',_) :- CC \= owl:'Nothing'.
+strictSubsumptionOf(owl:'Nothing',CP,_) :- CP \= owl:'Nothing'.
+strictSubsumptionOf(CC,CP,Schema) :-
     subClassOf(CC,CP,Schema).
-strictlySubsumes(CC,CP,Schema) :-
+strictSubsumptionOf(CC,CP,Schema) :-
     unionOf(CP,CC,Schema).
-strictlySubsumes(CC,CP,Schema) :-
+strictSubsumptionOf(CC,CP,Schema) :-
     intersectionOf(CC,CP,Schema).
-strictlySubsumes(CC,CP,Schema) :-
+strictSubsumptionOf(CC,CP,Schema) :-
     subClassOf(CC,CZ,Schema),
-    strictlySubsumes(CZ,CP,Schema).
-strictlySubsumes(CC,CP,Schema) :-
+    strictSubsumptionOf(CZ,CP,Schema).
+strictSubsumptionOf(CC,CP,Schema) :-
     unionOf(CZ,CC,Schema),
-    strictlySubsumes(CZ,CP,Schema).
-strictlySubsumes(CC,CP,Schema) :-
+    strictSubsumptionOf(CZ,CP,Schema).
+strictSubsumptionOf(CC,CP,Schema) :-
     intersectionOf(CC,CZ,Schema), 
-    strictlySubsumes(CZ,CP,Schema).
-strictlySubsumes(CC,CP,_) :- % xsd types
-    datatypeStrictlySubsumes(CC,CP).
+    strictSubsumptionOf(CZ,CP,Schema).
+strictSubsumptionOf(CC,CP,_) :- % xsd types
+    datatypeStrictSubsumptionOf(CC,CP).
 
 orphanClass(X,Y,Schema, Reason) :-
     subClassOf(X,Y,Schema),
@@ -190,26 +190,26 @@ rdfsProperty(rdfs:comment).
 
 :- rdf_meta dataProperty(r,o).
 dataProperty(P,Schema) :-
-    rdf(P,rdf:type,owl:'DataProperty',Schema).
+    xrdf(P,rdf:type,owl:'DataProperty',Schema).
 dataProperty(P,_) :- rdfsProperty(P).
 
 :- rdf_meta annotationProperty(r,o).
 annotationProperty(P,Schema) :-
-    rdf(P,rdf:type,owl:'AnnotationProperty',Schema).
+    xrdf(P,rdf:type,owl:'AnnotationProperty',Schema).
 
 :- rdf_meta objectProperty(r,o).
 objectProperty(P,Schema) :- 
-    rdf(P,rdf:type,owl:'ObjectProperty',Schema).
+    xrdf(P,rdf:type,owl:'ObjectProperty',Schema).
 objectProperty(P,Schema) :- 
     annotationProperty(P,Schema).
 
 :- rdf_meta functionalProperty(r,o).
 functionalProperty(P,Schema) :-
-    rdf(P,rdf:type,owl:'FunctionalProperty',Schema).
+    xrdf(P,rdf:type,owl:'FunctionalProperty',Schema).
 
 :- rdf_meta inverseFunctionalProperty(r,o).
 inverseFunctionalProperty(P,Schema) :-
-    rdf(P,rdf:type,owl:'InverseFunctionalProperty',Schema).
+    xrdf(P,rdf:type,owl:'InverseFunctionalProperty',Schema).
 
 :- rdf_meta property(r,o).
 property(P,Schema) :- dataProperty(P, Schema).
@@ -231,7 +231,7 @@ notUniquePropertySC(Schema,Reason) :-
 
 % One step subproperty relation
 :- rdf_meta subPropertyOf(r,r,o).
-subPropertyOf(X,Y,Schema) :- rdf(X,rdfs:subPropertyOf,Y,Schema).
+subPropertyOf(X,Y,Schema) :- xrdf(X,rdfs:subPropertyOf,Y,Schema).
 
 % Transitive reflexive closure of Subproperty relation.
 :- rdf_meta subsumptionPropertiesOf(r,r,o). 
@@ -277,10 +277,10 @@ propertyCycle(P,PC,Schema,Reason) :-
 propertyCycleSC(Schema,Reason) :- propertyCycle(_,_,Schema,Reason).
 
 :- rdf_meta range(r,r,o).
-range(P,R,Schema) :- rdf(P,rdfs:range,R,Schema).
+range(P,R,Schema) :- xrdf(P,rdfs:range,R,Schema).
 
 :- rdf_meta domain(r,r,o).
-domain(P,D,Schema) :- rdf(P,rdfs:domain,D,Schema).
+domain(P,D,Schema) :- xrdf(P,rdfs:domain,D,Schema).
 
 noImmediateDomainSC(Schema,Reason) :-
     property(P,Schema), \+ rdfsProperty(P),
@@ -333,11 +333,19 @@ invalidRangeSC(Schema,Reason) :-
 	    property=P,
 	    range=R].
 
+% Logging / Turn off for production
+:- use_module(library(http/http_log)).
+
 domainNotSubsumedSC(Schema,Reason) :-
     property(P,Schema),
     strictSubsumptionPropertiesOf(P,P2,Schema),
     domain(P,D,Schema), domain(P2,D2,Schema), % DDD too many solutions
-    \+ subsumes(D, D2, Schema), 
+    %http_log_stream(Log),
+    %current_output(Log),
+    %findall(X, subsumptionOf(D,X,Schema), L),
+    %nl(Log), nl(Log), write(Log, 'Subsumptions: '), write_canonical(Log, L), nl(Log), nl(Log),
+    %nl(Log), nl(Log), write(Log, 'Listing: '), write_canonical(Log, L), nl(Log), nl(Log),    
+    \+ subsumptionOf(D, D2, Schema),
     interpolate(['Invalid domain on property ', P,
 		 ', due to failure of domain subsumption.'], Message),
     Reason = [error=domainNotSubsumed,
@@ -351,8 +359,8 @@ rangeNotSubsumedSC(Schema,Reason) :-
     property(P,Schema),
     strictSubsumptionPropertiesOf(P,P2,Schema),
     range(P,R,Schema), range(P2,R2,Schema), % DDD too many solutions
-    \+ subsumes(R, R2, Schema), 
-    interpolate(['Invalid range on property ', P,
+    \+ subsumptionOf(R, R2, Schema), 
+    interpolate(['XXX Invalid range on property ', P,
 		 ', due to failure of range subsumption.'], Message),
     Reason = [error=rangeNotSubsumed,
 	      message=Message,
@@ -361,9 +369,9 @@ rangeNotSubsumedSC(Schema,Reason) :-
 	      range=R,
 	      parentRange=R2].
 
-schemaSubjectBlankNode(X,Schema) :- rdf(X,_,_,Schema), rdf_is_bnode(X).
-schemaPredicateBlankNode(Y,Schema) :- rdf(_,Y,_,Schema), rdf_is_bnode(Y).
-schemaObjectBlankNode(Z,Schema) :- rdf(_,_,Z,Schema), rdf_is_bnode(Z).
+schemaSubjectBlankNode(X,Schema) :- xrdf(X,_,_,Schema), rdf_is_bnode(X).
+schemaPredicateBlankNode(Y,Schema) :- xrdf(_,Y,_,Schema), rdf_is_bnode(Y).
+schemaObjectBlankNode(Z,Schema) :- xrdf(_,_,Z,Schema), rdf_is_bnode(Z).
 
 schemaBlankNodeSC(Schema,Reason) :-
     schemaSubjectBlankNode(X,Schema),
@@ -384,10 +392,8 @@ schemaBlankNodeSC(Schema,Reason) :-
 	    message=Message,
 	    object=X].
 
-
-
 % Labels
-label(X,Y,Schema) :- rdf(X, rdfs:label, Y, Schema).
+label(X,Y,Schema) :- xrdf(X, rdfs:label, Y, Schema).
 
 classHasLabel(X,Y,Schema) :- class(X,Schema), label(X,Y,Schema).
 %classHasNoLabel(X,Schema) :- class(X,Schema), \+ label(X,_,Schema).
