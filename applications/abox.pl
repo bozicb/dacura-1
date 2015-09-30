@@ -16,7 +16,7 @@
 		localOrphanPropertyIC/6
 	       ]).
 
-:- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
+:- use_module(library(semweb/rdf_db), except([rdf/3, rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils). 
@@ -202,7 +202,7 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 :- rdf_meta nelt(r,r,o,o,t).
 nelt(X,CP,Instance,Schema,Reason) :-
     rdf(X, rdf:type, CC, Instance),
-    (subsumes(CC,CP,Schema) *->
+    (tbox:subsumes(CC,CP,Schema) *->
        invalid(X,CC,Instance,Schema,Reason)
      ; Reason = [error=doesNotSubsume, 
 		 message='Subsumption Impossible',
@@ -236,8 +236,8 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
 	    object=Y,
 	    class=C].
 edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
+    objectProperty(P,Schema),	
     rdf(X,P,Y,Instance), % Added
-    objectProperty(P,Schema),
     \+ instanceClass(Y, _, Instance),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
@@ -245,8 +245,8 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
 	    predicate=P,
 	    object=Y].
 edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
-    rdf(X,P,Y,Instance), % Added
     objectProperty(P,Schema),
+    rdf(X,P,Y,Instance), % Added
     orphanInstance(Y,C,Instance,Schema),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
@@ -258,8 +258,8 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
 % The triple (X,P,Y) comes from the Herbrand base.
 :- rdf_meta invalidEdge(r,r,r,o,o,t).
 noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
-    rdf(X,P,Y,Instance), % Added
     property(P,Schema),
+    rdf(X,P,Y,Instance), % Added
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ domain(SuperP,_,Schema),
     Reason = [error=noPropertyDomain,
@@ -269,8 +269,8 @@ noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
 	      object=Y].
 
 noPropertyRangeIC(X,P,Y,Instance,Schema,Reason) :-
-    rdf(X,P,Y,Instance), % Added
     property(P,Schema),
+    rdf(X,P,Y,Instance), % Added
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ range(SuperP,_,Schema),
     Reason = [error=invalidEdge,
@@ -280,14 +280,14 @@ noPropertyRangeIC(X,P,Y,Instance,Schema,Reason) :-
 	      object=Y].
 
 invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
-    rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
     property(P,Schema),
+    rdf(X,P,Y,Instance), % Check to see if we were deleted or added.
     subsumptionPropertiesOf(P,SuperP,Schema),
     domain(SuperP,D,Schema),
     nelt(X,D,Instance,Schema,Reason).
 invalidEdgeIC(X,P,Y,Instance,Schema,Reason) :-
-    rdf(X,P,Y,Instance), % Added
     property(P,Schema),
+    rdf(X,P,Y,Instance), % Added
     subsumptionPropertiesOf(P,SuperP,Schema),
     range(SuperP,R,Schema),
     nelt(Y,R,Instance,Schema,Reason).

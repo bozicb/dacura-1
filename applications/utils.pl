@@ -1,6 +1,6 @@
 :- module(utils,[
 	         getKey/4, count/3, path_end/2, render/2, convert_quads/2, json_to_literal/2,
-		 interpolate/2
+		 interpolate/2, uniqueSolns/3
 		]).
 
 % convenience functions
@@ -70,3 +70,11 @@ interpolate([H|T],S) :-
     ground(H), term_to_atom(H,C),
     interpolate(T,Rest) ,
     atom_concat(C,Rest,S) , !.
+
+%:- meta uniqueSolns
+uniqueSolns(Template,Predicate,Collection) :-
+    (setof(Template, Predicate, CollectionX)
+     -> Collection=CollectionX
+     ; Collection=[]).
+	  
+

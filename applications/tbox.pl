@@ -27,7 +27,7 @@
 		domainNotSubsumedSC/2, rangeNotSubsumedSC/2  % OWL
 	       ]).
 
-:- use_module(library(semweb/rdf_db), except([rdf/4, rdf_retractall/4])).
+:- use_module(library(semweb/rdf_db), except([rdf/3, rdf/4, rdf_retractall/4])).
 :- use_module(transactionGraph).
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils). 
@@ -262,7 +262,9 @@ orphanPropertySC(Schema,Reason) :-
 % subProperty cycles 
 
 propertyCycleHelp(P,S,[],_) :- get_assoc(P,S,true), !.
-propertyCycleHelp(P,S,[Q|T],Schema) :- property(P,Schema), subPropertyOf(Q,P,Schema), put_assoc(P, S, true, S2), propertyCycleHelp(Q,S2,T,Schema).
+propertyCycleHelp(P,S,[Q|T],Schema) :-
+    property(P,Schema), subPropertyOf(Q,P,Schema), put_assoc(P, S, true, S2),
+    propertyCycleHelp(Q,S2,T,Schema).
 
 propertyCycle(P,PC,Schema,Reason) :-
     empty_assoc(S), propertyCycleHelp(P,S,PC,Schema),
@@ -337,21 +339,21 @@ domainNotSubsumedSC(Schema,Reason) :-
     domain(P,D,Schema), domain(P2,D2,Schema), % DDD too many solutions
     \+ subsumes(D, D2, Schema), 
     interpolate(['Invalid domain on property ', P,
-		 ', due to failure of property subsumption.'], Message),
+		 ', due to failure of domain subsumption.'], Message),
     Reason = [error=domainNotSubsumed,
 	      message=Message,
 	      property=P,
 	      parentProperty=P2,
 	      domain=D,
-	      parentRange=D2].
+	      parentDomain=D2].
 
 rangeNotSubsumedSC(Schema,Reason) :-
     property(P,Schema),
     strictSubsumptionPropertiesOf(P,P2,Schema),
-    range(P,R,Schema), range(P2,R2,Schema),
+    range(P,R,Schema), range(P2,R2,Schema), % DDD too many solutions
     \+ subsumes(R, R2, Schema), 
     interpolate(['Invalid range on property ', P,
-		 ', due to failure of property subsumption.'], Message),
+		 ', due to failure of range subsumption.'], Message),
     Reason = [error=rangeNotSubsumed,
 	      message=Message,
 	      property=P,
