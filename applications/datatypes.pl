@@ -89,11 +89,11 @@ baseType(xsd:'NMTOKEN').
 baseType(xsd:'Name'). 
 baseType(xsd:'NCName'). 
 baseType(rdf:'PlainLiteral').
-baseType(rdf:'Literal').
+baseType(rdfs:'Literal').
 
 % We visually represent the heirarchy with whitespace.
 :- rdf_meta baseTypeParent(r,r).
-baseTypeParent(xsd:anySimpleType,rdf:'Literal').
+baseTypeParent(xsd:anySimpleType,rdfs:'Literal').
 baseTypeParent(xsd:string,xsd:anySimpleType).
  baseTypeParent(xsd:normalizedString, xsd:string).
    baseTypeParent(xsd:token, xsd:normalizedString).

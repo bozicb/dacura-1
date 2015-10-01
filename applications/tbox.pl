@@ -188,6 +188,10 @@ classCycleSC(Schema,Reason) :- classCycle(_,_,Schema,Reason), !.
 rdfsProperty(rdfs:label).
 rdfsProperty(rdfs:comment).
 
+:- rdf_meta rdfProperty(r,o).
+rdfProperty(P,Schema) :- 
+    xrdf(P,rdf:type,rdf:'Property',Schema).
+
 :- rdf_meta dataProperty(r,o).
 dataProperty(P,Schema) :-
     xrdf(P,rdf:type,owl:'DataProperty',Schema).
@@ -214,6 +218,7 @@ inverseFunctionalProperty(P,Schema) :-
 :- rdf_meta property(r,o).
 property(P,Schema) :- dataProperty(P, Schema).
 property(P,Schema) :- objectProperty(P,Schema). 
+property(P,Schema) :- rdfProperty(P,Schema).
 
 %uniqueProperty(P,Schema) :- property(P,Schema), bagof(P2, property(P2,Schema), L), count(P,L,1).
 
@@ -287,7 +292,8 @@ noImmediateDomainSC(Schema,Reason) :-
     \+ domain(P,_,Schema),
     (dataProperty(P,Schema) -> M='Data property '
      ; annotationProperty(P,Schema) -> M='Annotation property '
-     ; objectProperty(P,Schema) -> M='Object property '),
+     ; objectProperty(P,Schema) -> M='Object property '
+     ; rdfProperty(P,Schema) -> M='Rdf Property'),
     interpolate([M, P, ' has no specified domain.'], Message),
     Reason = [error=noImmediateDomain,
 	      property=P,
@@ -298,7 +304,8 @@ noImmediateRangeSC(Schema,Reason) :-
     \+ range(P,_,Schema),
     (dataProperty(P,Schema) -> M='Data property '
      ; annotationProperty(P,Schema) -> M='Annotation property '
-     ; objectProperty(P,Schema) -> M='Object property '),
+     ; objectProperty(P,Schema) -> M='Object property '
+     ; rdfProperty(P,Schema) -> M='Rdf Property'),
     interpolate([M, P, ' has no specified range.'], Message),
     Reason = [error=noImmediateRange,
 	      property=P,
@@ -318,7 +325,7 @@ invalidRangeSC(Schema,Reason) :-
     dataProperty(P,Schema),
     range(P,R,Schema),
     \+ baseType(R),
-    interpolate(['Data Property Range is not a valid (or implemented) datatype.'], Message),
+    interpolate(['DataProperty Range ', R, ' is not a valid (or implemented) datatype for property', P,'.'], Message),
     Reason=[error=invalidRange,
 	    message=Message,
 	    property=P,
@@ -327,7 +334,16 @@ invalidRangeSC(Schema,Reason) :-
     objectProperty(P,Schema),
     range(P,R,Schema),
     \+ class(R,Schema),
-    interpolate(['ObjectProperty ', P,'Has an undefined range.'],Message),
+    interpolate(['ObjectProperty Range ',R,' is not a valid range for property ',P,'.'],Message),
+    Reason=[error=invalidRange,
+	    message=Message,
+	    property=P,
+	    range=R].
+invalidRangeSC(Schema,Reason) :-
+    rdfProperty(P,Schema),
+    range(P,R,Schema),
+    \+ class(R,Schema), \+ baseType(R),
+    interpolate(['rdf:Property range ',R,' is not a valid range for property ',P,'.'],Message),
     Reason=[error=invalidRange,
 	    message=Message,
 	    property=P,

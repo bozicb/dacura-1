@@ -93,7 +93,8 @@ dacura_schema_update(Request) :-
     runSchemaUpdate(Delta, Pragma, Witnesses),
     %),
     
-    write_canonical(Log, Witnesses),
+    %write_canonical(Log,Witnesses),
+    %json_write(Log,Witnesses),
     
     % Witnesses=Delta,
     json_write(Out,Witnesses).
