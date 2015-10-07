@@ -55,7 +55,6 @@
 baseType(xsd:string). 
 baseType(xsd:boolean). 
 baseType(xsd:decimal). 
-baseType(xsd:integer). 
 baseType(xsd:double). 
 baseType(xsd:float). 
 baseType(xsd:time).
@@ -92,7 +91,7 @@ baseType(rdf:'PlainLiteral').
 baseType(rdfs:'Literal').
 
 % We visually represent the heirarchy with whitespace.
-:- rdf_meta baseTypeParent(r,r).
+:- rdf_meta baseTypeParent(o,o).
 baseTypeParent(xsd:anySimpleType,rdfs:'Literal').
 baseTypeParent(xsd:string,xsd:anySimpleType).
  baseTypeParent(xsd:normalizedString, xsd:string).
@@ -108,10 +107,9 @@ baseTypeParent(xsd:decimal,xsd:anySimpleType).
   baseTypeParent(xsd:integer,xsd:decimal).
     baseTypeParent(xsd:nonPositiveInteger,xsd:integer).
       baseTypeParent(xsd:negativeInteger,xsd:nonPositiveInteger).
-    baseTypeParent(xsd:long,xsd:intger).
-      baseTypeParent(xsd:integer,xsd:long).
-        baseTypeParent(xsd:short,xsd:integer).
-          baseTypeParent(xsd:integer,xsd:byte).
+    baseTypeParent(xsd:long,xsd:integer).
+      baseTypeParent(xsd:short,xsd:long).
+        baseTypeParent(xsd:byte,xsd:short).
     baseTypeParent(xsd:nonNegativeInteger,xsd:integer).
       baseTypeParent(xsd:unsignedLong,xsd:nonNegativeInteger). 
         baseTypeParent(xsd:unsignedInt,xsd:unsginedLong).
@@ -619,10 +617,10 @@ nbasetypeElt(literal(T),rdf:'PlainLiteral', Reason) :-
 	      message='Not a well formed rdf:PlainLiteral',
 	      literal=T,
 	      type='rdf:PlainLiteral'].
-nbasetypeElt(X,rdf:'Literal', Reason) :-
+nbasetypeElt(X,rdfs:'Literal', Reason) :-
     literal(_) \= X, term_to_atom(X,T)
     ->   
     Reason = [error=nbasetypeElt, 
-	      message='Not a well formed rdf:Literal',
+	      message='Not a well formed rdfs:Literal',
 	      literal=T,
-	      type='rdf:Literal'].
+	      type='rdfs:Literal'].

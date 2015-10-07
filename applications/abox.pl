@@ -224,13 +224,16 @@ nelt(X,CP,_,_,Reason) :-
 
 %nrange(P,R,Schema) :- xrdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,Schema).
 
-instanceClass(X, Y, Instance) :- xrdf(X, rdf:type, Y, Instance).
+instanceClass(X, Y, Graph) :- xrdf(X, rdf:type, Y, Graph).
+
 orphanInstance(X,C,Instance,Schema) :- instanceClass(X,C,Instance), \+ class(C,Schema).
+orphanInstance(X,C,_,Schema) :- instanceClass(X,C,Schema), \+ class(C,Schema). % Check abox assertions in schema (oneOf uses this)
 
 :- rdf_meta edgeOrphanInstance(r,r,r,o,o,t).
-edgeOrphanInstanceIC(X,P,Y,Instance,_,Reason) :-
+edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     xrdf(X,P,Y,Instance), % Added
     \+ instanceClass(X, _, Instance),
+    \+ instanceClass(X,_,Schema),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
 	    subject=X,
@@ -249,6 +252,7 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     objectProperty(P,Schema),	
     xrdf(X,P,Y,Instance), % Added
     \+ instanceClass(Y, _, Instance),
+    \+ instanceClass(Y,_,Schema),
     Reason=[error=edgeOrphanInstance,
 	    message='Instance has no class',
 	    subject=X,

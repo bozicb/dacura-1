@@ -84,7 +84,7 @@ failure_witness(DeleteFailures,DeleteWitness) :-
 
 preSchemaTest(Pragma,Schema,Reason) :-
     preTestSchema(Test),
-    member(tests=TList,Pragma), 
+    member(tests=TList,Pragma),
     (all=TList 
      *-> true
      ;  member(Test, TList)),
@@ -102,7 +102,7 @@ schemaTest(Pragma,Schema,Reason) :-
 runSchemaValidation(Pragma,Witnesses) :-
     getKey(schema, Pragma, Schema, 'schema'),
     % Only attempted schema test if the pre-test fails (Cycles!)
-    (setof(json(Reason), checker:preSchemaTest(Pragma, Schema, Reason), Witnesses)
+    (setof(json(Reason), checker:preSchemaTest(Pragma, Schema, Reason), Witnesses), !
      ; uniqueSolns(json(Reason), checker:schemaTest(Pragma, Schema, Reason), Witnesses)).
 
 
