@@ -47,7 +47,7 @@ dacura_reply(_Request) :-
 dacura_schema_update(Request) :-
     % Get current stdout 
     current_output(Out),
-    %http_log_stream(Log),
+    % http_log_stream(Log),
 
     %http_read_data(Request,Data,[]),
     %nb_setval(http_post_data, read),
@@ -93,7 +93,7 @@ dacura_schema_update(Request) :-
     runSchemaUpdate(Delta, Pragma, Witnesses),
     %),
     
-    %write_canonical(Log,Witnesses),
+%    write_canonical(Log,Witnesses),
     %json_write(Log,Witnesses),
     
     fixup_literals(Witnesses,JSON),
@@ -139,10 +139,12 @@ dacura_instance_update(Request) :-
 
     % write(Delta), nl, write(Pragma), nl,  Witnesses=[],
     runInstanceUpdate(Delta, Pragma, Witnesses),
-
-    Witnesses=JSON, 
-    %fixup_literals(Witnesses,JSON),
-
+%    http_log_stream(Log),
+%    write(Log,'Pre Fixup'), nl(Log),
+%    write_canonical(Log,Witnesses), 
+    fixup_literals(Witnesses,JSON),
+%    write(Log,'POOOST Fixup'), nl(Log),
+%    write_canonical(Log,JSON), 
     json_write(Out,JSON).
 
 
