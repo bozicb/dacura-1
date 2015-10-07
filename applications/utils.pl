@@ -56,7 +56,7 @@ convert_quads([[X1,Y1,Z1,G]|T1], [[X2,Y2,Z2,G]|T2]) :-
 fixup_literals([],[]).
 fixup_literals(json(L1),json(L2)) :-
     fixup_literals(L1,L2).
-fixup_literals([json(H1)|T1], [H2|T2]) :-
+fixup_literals([json(H1)|T1], [json(H2)|T2]) :-
     fixup_literals(H1,H2),
     fixup_literals(T1,T2).
 fixup_literals([X=Y1|T1],[X=Y2|T2]) :- 
