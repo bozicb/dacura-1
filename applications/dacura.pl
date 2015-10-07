@@ -136,12 +136,12 @@ dacura_instance_update(Request) :-
 
     % write(Delta), nl, write(Pragma), nl,  Witnesses=[],
     runInstanceUpdate(Delta, Pragma, Witnesses),
-    http_log_stream(Log),
-    write(Log,'Pre Fixup'), nl(Log),
-    write_canonical(Log,Witnesses), 
+%    http_log_stream(Log),
+%    write(Log,'Pre Fixup'), nl(Log),
+%    write_canonical(Log,Witnesses), 
     fixup_literals(Witnesses,JSON),
-    write(Log,'POOOST Fixup'), nl(Log),
-    write_canonical(Log,JSON), 
+%    write(Log,'POOOST Fixup'), nl(Log),
+%    write_canonical(Log,JSON), 
     json_write(Out,JSON).
 
 
