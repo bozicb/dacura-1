@@ -277,7 +277,7 @@ noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ domain(SuperP,_,Schema),
     Reason = [error=noPropertyDomain,
-	      message=='Property has no well defined domain.',
+	      message='Property has no well defined domain.',
 	      subject=X,
 	      predicate=SuperP,
 	      object=Y].
