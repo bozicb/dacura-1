@@ -85,7 +85,7 @@ dateTime(SY,Mo,D,H,M,S,Z,ZH,ZM) -->
     year(SY), "-", twoDigitNatural(Mo), "-", twoDigitNatural(D),
     "T", time(H,M,S,Z,ZH,ZM) .
 
-gYear(Y,Z,ZH,ZM) --> integer(Y), timeZone(Z,ZH,ZM) .
+gYear(Y,Z,ZH,ZM) --> year(Y), timeZone(Z,ZH,ZM) .
 
 gYearMonth(Y,M,Z,ZH,ZM) --> year(Y), "-", twoDigitNatural(M), timeZone(Z,ZH,ZM) .
 
