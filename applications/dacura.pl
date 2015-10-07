@@ -47,7 +47,7 @@ dacura_reply(_Request) :-
 dacura_schema_update(Request) :-
     % Get current stdout 
     current_output(Out),
-    http_log_stream(Log),
+    %http_log_stream(Log),
 
     %http_read_data(Request,Data,[]),
     %nb_setval(http_post_data, read),
@@ -136,8 +136,10 @@ dacura_instance_update(Request) :-
 
     % write(Delta), nl, write(Pragma), nl,  Witnesses=[],
     runInstanceUpdate(Delta, Pragma, Witnesses),
-    		  
-    json_write(Out,Witnesses).
+
+    fixup_literals(Witnesses,JSON),
+
+    json_write(Out,JSON).
 
 
 dacura_validate(Request) :- 
@@ -154,8 +156,8 @@ dacura_validate(Request) :-
     atom_json_term(Pragma_String, json(Pragma), []),
     
     runFullValidation(Pragma, Witnesses),
-
-    json_write(Out,Witnesses).
+    fixup_literals(Witnesses,JSON),
+    json_write(Out,JSON).
 
 
 dacura_schema_validate(Request) :- 
@@ -174,8 +176,8 @@ dacura_schema_validate(Request) :-
     %rdf_transaction(
     runSchemaValidation(Pragma, Witnesses),
 		       %),
-
-    json_write(Out,Witnesses).
+    fixup_literals(Witnesses,JSON),
+    json_write(Out,JSON).
 
 
 dacura_test(_Request) :- 
@@ -188,7 +190,8 @@ dacura_test(_Request) :-
 
     % Get current stdout
     runTests(Witnesses),
-    json_write(Out,Witnesses).
+    fixup_literals(Witnesses,JSON),
+    json_write(Out,JSON).
 
 
 /*

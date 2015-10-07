@@ -1,6 +1,7 @@
 :- module(utils,[
 	         getKey/4, count/3, path_end/2, render/2, convert_quads/2, json_to_literal/2,
-		 interpolate/2, uniqueSolns/3
+		 interpolate/2, uniqueSolns/3,
+		 fixup_literals/2
 		]).
 
 % convenience functions
@@ -52,6 +53,16 @@ convert_quads([[X1,Y1,Z1,G]|T1], [[X2,Y2,Z2,G]|T2]) :-
 %    write(Log,']\n'),
     convert_quads(T1,T2).
 
+fixup_literals([],[]).
+fixup_literals(json(L1),json(L2)) :-
+    fixup_literals(L1,L2).
+fixup_literals([json(H1)|T1], [H2|T2]) :-
+    fixup_literals(H1,H2),
+    fixup_literals(T1,T2).
+fixup_literals([X=Y1|T1],[X=Y2|T2]) :- 
+    json_to_literal(Y2,Y1),
+    fixup_literals(T1,T2).
+
 %errorProcedure :-
 %    throw(basalt("Foo fluppers!")).
 
@@ -76,5 +87,3 @@ uniqueSolns(Template,Predicate,Collection) :-
     (setof(Template, Predicate, CollectionX)
      -> Collection=CollectionX
      ; Collection=[]).
-	  
-

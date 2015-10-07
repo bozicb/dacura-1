@@ -151,8 +151,8 @@ runSchemaUpdate(Delta, Pragma, Witnesses) :-
     failure_witness(DeleteFailures,DeleteWitness),
     % getKey(schema, Pragma, Schema, 'schema'),
     % getKey(instance, Pragma, Instance, 'instance'),
-    runInstanceValidation(Delta,Pragma,Witnesses1),
     runSchemaValidation(Pragma,Witnesses2),
+    runInstanceValidation(Delta,Pragma,Witnesses1),
     append(Witnesses1,Witnesses2,Witnesses3),
     append(Witnesses3,DeleteWitness, Witnesses),
 
@@ -187,6 +187,6 @@ runFullValidation(Pragma,Witnesses) :-
     runSchemaValidation(Pragma,SchemaWitnesses), 
     
     % schema updates can be empty and will check all, but instances can not!
-    uniqueSolns(json(W), fullInstanceValidator(Pragma,W), InstanceWitnesses),
+    uniqueSolns(json(W), checker:fullInstanceValidator(Pragma,W), InstanceWitnesses),
     
     append(SchemaWitnesses,InstanceWitnesses,Witnesses).

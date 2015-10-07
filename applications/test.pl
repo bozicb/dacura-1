@@ -40,6 +40,8 @@ tests([instance=instance, schema=typeCheck, tests=[edgeOrphanInstanceIC]],
       [json([=(error,edgeOrphanInstance),=(message,'Instance domain class is not valid'),=(subject,'http://dacura.cs.tcd.ie/data/seshat#thing'),=(predicate,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),=(object,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey'),=(class,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey')]),json([=(error,edgeOrphanInstance),=(message,'Instance domain class is not valid'),=(subject,'http://dacura.cs.tcd.ie/data/seshat#thing'),=(predicate,'http://dacura.cs.tcd.ie/data/seshat#someproperty'),=(object,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey'),=(class,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey')])]).
 tests([instance=rdfcioInstance, schema=rdfcio, tests=[invalidEdgeIC]],
       [json([=(error,objectInvalidAtClass),=(message,'Complement is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'__rdfcio4')]),json([=(error,objectInvalidAtClass),=(message,'Complement is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'__rdfcio4')]),json([=(error,objectInvalidAtClass),=(message,'Complement is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'__rdfcio4')]),json([=(error,objectInvalidAtClass),=(message,'Complement is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'__rdfcio4')])]).
+tests([instance=disjointUnionInstance, schema=disjointUnion, tests=[invalidEdgeIC]],
+      [json([=(error,objectInvalidAtClass),=(message,'Complement is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'__rdfcio4')]),json([=(error,objectInvalidAtClass),=(message,'Complement is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'__rdfcio4')]),json([=(error,objectInvalidAtClass),=(message,'Complement is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'__rdfcio4')]),json([=(error,objectInvalidAtClass),=(message,'Complement is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'__rdfcio4')])]).
 
 
 fname(Name,FName) :-
@@ -59,6 +61,7 @@ runTest(Fail) :-
     member(schema=Schema, Pragma),
     member(instance=Instance, Pragma),
     member(tests=Tests, Pragma),
+    unloadDB(Instance,Schema), % make sure we don't exist first!
     loadDB(Instance,Schema),
     runFullValidation(Pragma,Witnesses),
     (ExpectedWitnesses = Witnesses

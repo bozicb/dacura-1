@@ -42,6 +42,15 @@ invalid(X,CC,Instance,Schema,Reason) :-
     member(C,L),
     invalid(X,C,Instance,Schema, Reason).
 invalid(X,CC,Instance,Schema,Reason) :-
+    xrdf(CC,owl:disjointUnionOf,ListObj,Schema),
+    collect(ListObj,L,Schema),
+    findall(C, (member(C,L), \+ invalid(X,C,Instance,Schema,_)), Solutions), 
+    length(Solutions, N), N \= 1,
+    Reason = [error=objectInvalidAtClass,
+	      message='More than one branch of disjointUnion is valid.',
+	      element=X,
+	      class=CC].
+invalid(X,CC,Instance,Schema,Reason) :-
     xrdf(CC,owl:unionOf,ListObj, Schema),
     collect(ListObj,L,Schema),
     forall(member(C,L),
@@ -200,15 +209,16 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 
 % X is not an element of CP for Reason
 :- rdf_meta nelt(r,r,o,o,t).
-nelt(X,CP,Instance,Schema,Reason) :-
-    xrdf(X, rdf:type, CC, Instance),
-    (subsumptionOf(CC,CP,Schema) *->
-       invalid(X,CC,Instance,Schema,Reason)
-     ; Reason = [error=doesNotSubsume, 
-		 message='Subsumption Impossible',
-		 element=X,
-		 class=CP,
-		 instanceClass=CC]).
+nelt(X,CC,Instance,Schema,Reason) :-
+    invalid(X,CC,Instance,Schema,Reason).
+nelt(X,CC,Instance,Schema,Reason) :-
+    subsumptionOf(CC,CP,Schema),
+    invalid(X,CP,Instance,Schema,Reason).
+%% Reason = [error=doesNotSubsume, 
+%%      		 message='Subsumption Impossible',
+%%      		 element=X,
+%%      		 class=CP,
+%% 		 instanceClass=CC]).
 nelt(X,CP,_,_,Reason) :-
     nbasetypeElt(X,CP,Reason).
 

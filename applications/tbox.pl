@@ -84,6 +84,12 @@ unionOf(C,U,Schema) :-
     collect(ListObj,L,Schema),
     member(U,L).
 
+:- rdf_meta disjointUnionOf(r,r,o).
+disjointUnionOf(C,U,Schema) :-
+    xrdf(C,owl:disjointUnionOf,ListObj, Schema),
+    collect(ListObj,L,Schema),
+    member(U,L).
+
 :- rdf_meta intersectionOf(r,r,o).
 intersectionOf(C,I,Schema) :-
     xrdf(C,owl:intersectionOf,ListObj,Schema),
@@ -112,6 +118,9 @@ subsumptionOf(CC,CP,Schema) :-
     unionOf(CZ,CC,Schema),
     subsumptionOf(CZ,CP,Schema).
 subsumptionOf(CC,CP,Schema) :-
+    disjointUnionOf(CZ,CC,Schema),
+    subsumptionOf(CZ,CP,Schema).
+subsumptionOf(CC,CP,Schema) :-
     intersectionOf(CC,CZ,Schema), 
     subsumptionOf(CZ,CP,Schema).
 subsumptionOf(CC,CP,_) :- % xsd types
@@ -132,6 +141,9 @@ strictSubsumptionOf(CC,CP,Schema) :-
     strictSubsumptionOf(CZ,CP,Schema).
 strictSubsumptionOf(CC,CP,Schema) :-
     unionOf(CZ,CC,Schema),
+    strictSubsumptionOf(CZ,CP,Schema).
+strictSubsumptionOf(CC,CP,Schema) :-
+    disjointUnionOf(CZ,CC,Schema),
     strictSubsumptionOf(CZ,CP,Schema).
 strictSubsumptionOf(CC,CP,Schema) :-
     intersectionOf(CC,CZ,Schema), 

@@ -12,7 +12,7 @@ pos(schema, 'pos-schema') :- !.
 pos(instance, 'pos-instance') :- !.
 pos(A1,A2) :- atom_concat('pos-', A1, A2).
 
-:- rdf_meta xrdf(r,r,r,?).
+:- rdf_meta xrdf(r,r,t,?).
 xrdf(X,Y,Z,G) :- (pos(G,GP), rdf_db:rdf(X,Y,Z,GP)    % If in positive graph, return results
                   *-> true                           % 
 		  ; (neg(G,GN), rdf_db:rdf(X,Y,Z,GN) % If it's not negative
@@ -21,7 +21,7 @@ xrdf(X,Y,Z,G) :- (pos(G,GP), rdf_db:rdf(X,Y,Z,GP)    % If in positive graph, ret
 
 % you can safely ignore rdf_meta for understanding this programme
 % it only affects namespace prefix handling.
-:- rdf_meta insert(r,r,o,?).
+:- rdf_meta insert(r,r,t,?).
 insert(X,Y,Z,G) :- 
     pos(G,G2),
     % positive pos graph
@@ -29,7 +29,7 @@ insert(X,Y,Z,G) :-
     % retract from the negative graph, if it exists.
     (neg(G,G3), rdf_db:rdf(X,Y,Z,G3), rdf_retractall(X,Y,Z,G3) ; true).
 
-:- rdf_meta delete(r,r,o,?).
+:- rdf_meta delete(r,r,t,?).
 delete(X,Y,Z,G) :- 
     pos(G,G2), % delete from pos graph
     rdf_db:rdf(X,Y,Z,G2),
