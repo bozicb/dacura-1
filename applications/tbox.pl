@@ -206,7 +206,7 @@ rdfProperty(P,Schema) :-
 
 :- rdf_meta dataProperty(r,o).
 dataProperty(P,Schema) :-
-    xrdf(P,rdf:type,owl:'DataProperty',Schema).
+    xrdf(P,rdf:type,owl:'DatatypeProperty',Schema).
 dataProperty(P,_) :- rdfsProperty(P).
 
 :- rdf_meta annotationProperty(r,o).

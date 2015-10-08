@@ -1,0 +1,21 @@
+@prefix : <http://www.example.org/data#> .
+@prefix schema: <http://www.example.org/schema#> .
+@prefix cio: <http://www.w3.org/2015/rdfcio#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+
+# This is valid
+:eltA a schema:EitherAorB ;
+      schema:a "1"^^xsd:nonNegativeInteger  .
+
+# This is valid
+:eltB a schema:EitherAorB ;
+      schema:b "1"^^xsd:nonNegativeInteger  .
+
+# This should fail
+:eltAB a schema:EitherAorB ;
+      schema:a "1"^^xsd:nonNegativeInteger ;
+      schema:b "1"^^xsd:nonNegativeInteger .
