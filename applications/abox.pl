@@ -208,6 +208,17 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      cardinality=A,
 	      qualifiedOn=C,
 	      class=CR].
+neltRestriction(X,CR,Instance,Schema,Reason) :-
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:hasValue,V,Schema),
+    inferredEdge(X,OP,Y,Instance,Schema),
+    Y \= V, 
+    Reason = [error=notRestrictionElement,
+	      message='hasValue constraint violated',
+	      element=X,
+	      value=V,
+	      class=CR].
+
 
 % X is not an element of CP for Reason
 :- rdf_meta nelt(r,r,o,o,t).

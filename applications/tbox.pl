@@ -21,7 +21,8 @@
 		noImmediateDomainSC/2, noImmediateRangeSC/2,      % Best Practice
 		schemaBlankNodeSC/2, notUniqueClassLabelSC/2,       % Best Practice
 		notUniqueClassSC/2, notUniquePropertySC/2,        % Best Practice
-
+		noImmediateClassSC/2,
+		
 		% OWL DL (Constraint)
 		orphanClassSC/2,              % OWL
 		orphanPropertySC/2,           % OWL
@@ -37,6 +38,12 @@
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% OWL DL Syntactic correctness
+%%
+%% It would be useful to do a complete check on the syntactic
+%% correctness of our ontology according to the OWL 2 / RDF mapping
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Classes 
 
 % Check to see if class definitions are immediate (best practices).
@@ -49,15 +56,18 @@ immediateClass(owl:'Nothing',_).
 % All class designations - with inferences.
 :- rdf_meta class(r,o).
 class(X,Schema) :- immediateClass(X,Schema). 
-class(X,Schema) :- subClassOf(X,_,Schema).
-class(X,Schema) :- equivalentClass(X,_,Schema).
+class(X,Schema) :- subClassOf(X,Y,Schema), class(Y,Schema).
+class(X,Schema) :- equivalentClass(X,Y,Schema), class(Y,Schema).
 
 :- rdf_meta restriction(r,o).
 restriction(R,Schema) :- xrdf(R, rdf:type, owl:'Restriction', Schema).
+restriction(R,Schema) :- subClassOf(X,Y,Schema), restriction(Y,Schema).
+restriction(R,Schema) :- equivalentClass(X,Y,Schema), restriction(Y,Schema).
 
 % A class is used without a class definition.
 noImmediateClassSC(Schema, Reason) :-
-    domain(X,P,Schema),
+    xrdf(P,rdf:type,owl:'ObjectProperty',Schema),
+    domain(P,X,Schema),
     \+ immediateClass(X,Schema), \+ restriction(X,Schema),
     interpolate([X,' is used as a domain for property ',P,' but is not defined'], Message),
     Reason = [error=notDomainClass,
@@ -65,7 +75,8 @@ noImmediateClassSC(Schema, Reason) :-
 	      class=X,
 	      property=P].
 noImmediateClassSC(Schema, Reason) :-
-    range(X,P,Schema),
+    xrdf(P,rdf:type,owl:'ObjectProperty',Schema),
+    range(P,X,Schema),
     \+ immediateClass(X,Schema), \+ restriction(X,Schema),
     interpolate([X,' is used as a domain for property ',P,' but is not defined'], Message),
     Reason = [error=notDomainClass,
@@ -74,15 +85,15 @@ noImmediateClassSC(Schema, Reason) :-
 	      property=P].
 noImmediateClassSC(Schema, Reason) :-
     subClassOf(X,Y,Schema),
-    \+ immediateClass(X,Schema), \+ restriction(X,Schema),
+    \+ customDatatype(X,Schema), \+ immediateClass(X,Schema), \+ restriction(X,Schema),
     interpolate(['The class ',Y,' is not a superclass of a defined class ',X], Message),
     Reason = [error=notSuperClassOfClass,
 	      message=Message,
 	      child=X,
 	      parent=Y].
 noImmediateClassSC(Schema, Reason) :-
-    subClassOf(X,Y,Schema),
-    \+ immediateClass(Y,Schema), \+ restriction(Y,Schema),
+    subClassOf(X,Y,Schema), 
+    \+ customDatatype(Y,Schema), \+ immediateClass(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a subclass of a defined class ',Y], Message),
     Reason = [error=notSubClassOfClass,
 	      message=Message,
@@ -339,18 +350,15 @@ classCycleHelp(C,S,[K|P],Schema) :-
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
     class(C,Schema),
-    intersectionOf(C,K,Schema), 
+    intersectionOf(K,C,Schema), 
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
     class(C,Schema),
-    anonymousEquivalentClass(C,K,Schema),
+    equivalentClass(K,C,Schema),
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
     class(C,Schema),
-    complementOf(C,K,Schema), 
-    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
-classCycleHelp(C,S,[K|P],Schema) :-
-    class(C,Schema), subClassOf(K,C,Schema), 
+    complementOf(K,C,Schema), 
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 
 classCycle(C,P,Schema,Reason) :-
@@ -369,15 +377,17 @@ classCycleSC(Schema,Reason) :- classCycle(_,_,Schema,Reason), !.
 :- rdf_meta rdfsProperty(r).
 rdfsProperty(rdfs:label).
 rdfsProperty(rdfs:comment).
+rdfsProperty(rdfs:seeAlso).
 
 :- rdf_meta rdfProperty(r,o).
 rdfProperty(P,Schema) :- 
     xrdf(P,rdf:type,rdf:'Property',Schema).
-
+rdfProperty(P,_) :- rdfsProperty(P).
+	   
 :- rdf_meta datatypeProperty(r,o).
 datatypeProperty(P,Schema) :-
     xrdf(P,rdf:type,owl:'DatatypeProperty',Schema).
-datatypeProperty(P,_) :- rdfsProperty(P).
+datatypeProperty(P,Schema) :- rdfProperty(P,Schema).
 
 :- rdf_meta annotationProperty(r,o).
 annotationProperty(P,Schema) :-
@@ -399,10 +409,10 @@ objectProperty(P,Schema) :- rdfProperty(P,Schema).
 :- rdf_meta property(r,o).
 property(P,Schema) :-
     % Don't predicate over annotations (even if they are otherwise declared as properties.
-    annotationProperty(P,Schema), !, fail. 
-property(P,Schema) :- datatypeProperty(P, Schema).
-property(P,Schema) :- objectProperty(P,Schema). 
-property(P,Schema) :- rdfProperty(P,Schema).
+    annotationProperty(P,Schema) *-> fail
+    ; (datatypeProperty(P, Schema)
+       ; objectProperty(P,Schema)
+       ; rdfProperty(P,Schema)).
 
 %uniqueProperty(P,Schema) :- property(P,Schema), bagof(P2, property(P2,Schema), L), count(P,L,1).
 
@@ -453,8 +463,8 @@ strictSubsumptionPropertiesOf(PC,PP,Schema) :-
 
 orphanProperty(X,Y,Schema,Reason) :-
     subPropertyOf(X,Y,Schema),
-    \+ property(Y,Schema),
-    interpolate([X,' is not a sub-property of ', Y], Message),
+    \+ property(Y,Schema), \+ annotationProperty(Y,Schema),
+    interpolate([X,' is not a sub-property of a valid property ', Y], Message),
     Reason=[error=notSubPropertyOfProperty,
 	    child=X,
 	    parent=Y,
@@ -523,7 +533,7 @@ invalidDomainSC(Schema,Reason) :-
 invalidRangeSC(Schema,Reason) :-
     datatypeProperty(P,Schema),
     range(P,R,Schema),
-    \+ datatype(R,Schema),
+    \+ datatype(R,Schema), \+ rdfProperty(P,Schema),
     interpolate(['DataProperty Range ', R, ' is not a valid (or implemented) datatype for property ', P,'.'], Message),
     Reason=[error=invalidRange,
 	    message=Message,
@@ -532,7 +542,7 @@ invalidRangeSC(Schema,Reason) :-
 invalidRangeSC(Schema,Reason) :-
     objectProperty(P,Schema),
     range(P,R,Schema),
-    \+ class(R,Schema),
+    \+ class(R,Schema), \+ rdfProperty(P,Schema),
     interpolate(['ObjectProperty Range ',R,' is not a valid range for property ',P,'.'],Message),
     Reason=[error=invalidRange,
 	    message=Message,
