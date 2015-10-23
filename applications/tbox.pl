@@ -2,11 +2,13 @@
 	        %%% TBox predicates
 	        class/2, restriction/2, classOrRestriction/2,
 		subClassOf/3, unionOf/3, intersectionOf/3, subClassStrict/3,
-		subsumptionOf/3, strictSubsumptionOf/3,
-		dataProperty/2, objectProperty/2, annotationProperty/2,
+		subsumptionOf/3, strictSubsumptionOf/3, complementOf/3,
+		datatypeProperty/2, objectProperty/2, annotationProperty/2,
 		property/2, subPropertyOf/3, subsumptionPropertiesOf/3,
 		range/3, domain/3, collect/3, functionalProperty/2,
 		inverseFunctionalProperty/2, restrictionOnProperty/3,
+		datatypeSubsumptionOf/3, basetypeSubsumptionOf/2,
+		customDatatype/2,
 		
 		%%% SC == Schema Constraints
 		%%% constraints must be pred/2
@@ -19,7 +21,8 @@
 		noImmediateDomainSC/2, noImmediateRangeSC/2,      % Best Practice
 		schemaBlankNodeSC/2, notUniqueClassLabelSC/2,       % Best Practice
 		notUniqueClassSC/2, notUniquePropertySC/2,        % Best Practice
-
+		noImmediateClassSC/2,
+		
 		% OWL DL (Constraint)
 		orphanClassSC/2,              % OWL
 		orphanPropertySC/2,           % OWL
@@ -35,16 +38,99 @@
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% OWL DL Syntactic correctness
+%%
+%% It would be useful to do a complete check on the syntactic
+%% correctness of our ontology according to the OWL 2 / RDF mapping
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Classes 
 
-% All class designations
-:- rdf_meta class(r,o).
-class(X,Schema) :- xrdf(X, rdf:type, rdfs:'Class', Schema).
-class(X,Schema) :- xrdf(X, rdf:type, owl:'Class', Schema).
-class(owl:'Thing',_).
-class(owl:'Nothing',_).
+% Check to see if class definitions are immediate (best practices).
+:- rdf_meta immediateClass(r,o).
+immediateClass(X,Schema) :- xrdf(X, rdf:type, rdfs:'Class', Schema).
+immediateClass(X,Schema) :- xrdf(X, rdf:type, owl:'Class', Schema).
+immediateClass(owl:'Thing',_).
+immediateClass(owl:'Nothing',_).
 
+% All class designations - with inferences.
+:- rdf_meta class(r,o).
+class(X,Schema) :- immediateClass(X,Schema). 
+class(X,Schema) :- subClassOf(X,Y,Schema), class(Y,Schema).
+class(X,Schema) :- equivalentClass(X,Y,Schema), class(Y,Schema).
+
+:- rdf_meta restriction(r,o).
 restriction(R,Schema) :- xrdf(R, rdf:type, owl:'Restriction', Schema).
+restriction(R,Schema) :- subClassOf(R,R2,Schema), restriction(R2,Schema).
+restriction(R,Schema) :- equivalentClass(R,R2,Schema), restriction(R2,Schema).
+
+% A class is used without a class definition.
+noImmediateClassSC(Schema, Reason) :-
+    xrdf(P,rdf:type,owl:'ObjectProperty',Schema),
+    domain(P,X,Schema),
+    \+ immediateClass(X,Schema), \+ restriction(X,Schema),
+    interpolate([X,' is used as a domain for property ',P,' but is not defined'], Message),
+    Reason = [error=notDomainClass,
+	      message=Message,
+	      class=X,
+	      property=P].
+noImmediateClassSC(Schema, Reason) :-
+    xrdf(P,rdf:type,owl:'ObjectProperty',Schema),
+    range(P,X,Schema),
+    \+ immediateClass(X,Schema), \+ restriction(X,Schema),
+    interpolate([X,' is used as a domain for property ',P,' but is not defined'], Message),
+    Reason = [error=notDomainClass,
+	      message=Message,
+	      class=X,
+	      property=P].
+noImmediateClassSC(Schema, Reason) :-
+    subClassOf(X,Y,Schema),
+    \+ customDatatype(X,Schema), \+ immediateClass(X,Schema), \+ restriction(X,Schema),
+    interpolate(['The class ',Y,' is not a superclass of a defined class ',X], Message),
+    Reason = [error=notSuperClassOfClass,
+	      message=Message,
+	      child=X,
+	      parent=Y].
+noImmediateClassSC(Schema, Reason) :-
+    subClassOf(X,Y,Schema), 
+    \+ customDatatype(Y,Schema), \+ immediateClass(Y,Schema), \+ restriction(Y,Schema),
+    interpolate(['The class ',X,' is not a subclass of a defined class ',Y], Message),
+    Reason = [error=notSubClassOfClass,
+	      message=Message,
+	      child=X,
+	      parent=Y].
+noImmediateClassSC(Schema, Reason) :-
+    intersectionOf(X,Y,Schema),
+    \+ immediateClass(X,Schema), \+ restriction(X,Schema),
+    interpolate(['The class ',X,' is an intersection of ', Y,' but not a defined class'], Message),
+    Reason = [error=notIntersectionOfClass,
+	      message=Message,
+	      child=X,
+	      parent=Y].
+noImmediateClassSC(Schema, Reason) :-
+    intersectionOf(X,Y,Schema),
+    \+ immediateClass(Y,Schema), \+ restriction(Y,Schema),
+    interpolate(['The class ',X,' is not an intersection of a defined class ',Y], Message),
+    Reason = [error=notIntersectionOfClass,
+	      message=Message,
+	      child=X,
+	      parent=Y].
+noImmediateClassSC(Schema, Reason) :-
+    unionOf(X,Y,Schema),
+    \+ immediateClass(Y,Schema), \+ restriction(Y,Schema),
+    interpolate(['The class ',X,' is not a union of a defined class ',Y], Message),
+    Reason = [error=notUnionOfClass,
+	      message=Message,
+	      child=X,
+	      parent=Y].
+noImmediateClassSC(Schema, Reason) :-
+    unionOf(X,Y,Schema),
+    \+ immediateClass(X,Schema), \+ restriction(X,Schema),
+    interpolate(['The class ',X,' is a union of ', Y,' but not a defined class'], Message),
+    Reason = [error=notUnionOfClass,
+	      message=Message,
+	      child=X,
+	      parent=Y].
 
 restrictionOnProperty(CR,P,Schema) :- xrdf(CR,owl:onProperty,P,Schema), restriction(CR,Schema).
 
@@ -97,61 +183,132 @@ intersectionOf(C,I,Schema) :-
     member(I,L).
 
 :- rdf_meta oneOf(r,r,o).
-oneOf(X,CC,Schema) :-
-    xrdf(CC,rdfs:oneOf,ListObj,Schema),
+oneOf(CC,X,Schema) :-
+    xrdf(CC,owl:oneOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     member(X,L).
+
+:- rdf_meta complementOf(r,r,o).
+complementOf(CC,CN,Schema) :-
+    xrdf(CC,owl:complementOf,CN,Schema).
+
+:- rdf_meta equivalentClass(r,r,o).
+equivalentClass(CC,CE,Schema) :-
+    xrdf(CC,owl:equivalentClass,ListObj,Schema),
+    collect(ListObj,L,Schema),
+    member(CE,L).
+
+:- rdf_meta equivalentClass(r,r,o).
+anonymousEquivalentClass(C,CE,Schema) :-
+    equivalentClass(C,CE,Schema),
+    % Exactly one reference to this class, or everything will go to hell.
+    (setof(X,xrdf(X,_,CE,Schema), ListX) *-> ListX = L ; L = []),
+    length(L,1).
 
 % transitive strict relation
 subClassStrict(X,Y,Schema) :- subClassOf(X,Y,Schema). 
 subClassStrict(X,Z,Schema) :- subClassOf(X,Y,Schema), subClassStrict(Y,Z, Schema).
 
 % Implements class subsumption
+% - complementOf classes do not give subsumption properly yet (unimplemented).
+%   Requires anti-subsumption predicate
+% - oneOf should probably have individual sets for both CC, CP
 :- rdf_meta subsumptionOf(r,r,o).
 subsumptionOf(_,owl:'Thing',_). % Is this worth throwing in? Might conflict with other constraints
 subsumptionOf(owl:'Nothing',_,_).
-subsumptionOf(CC,CC,_).
+subsumptionOf(CC,CC,Schema) :-
+    class(CC,Schema).
 subsumptionOf(CC,CP,Schema) :-
     subClassOf(CC,CZ,Schema),
     subsumptionOf(CZ,CP,Schema).
 subsumptionOf(CC,CP,Schema) :-
+    class(CC,Schema),
     unionOf(CZ,CC,Schema),
     subsumptionOf(CZ,CP,Schema).
 subsumptionOf(CC,CP,Schema) :-
+    class(CC,Schema),	
     disjointUnionOf(CZ,CC,Schema),
     subsumptionOf(CZ,CP,Schema).
 subsumptionOf(CC,CP,Schema) :-
+    class(CC,Schema),	
     intersectionOf(CC,CZ,Schema), 
     subsumptionOf(CZ,CP,Schema).
-subsumptionOf(CC,CP,_) :- % xsd types
-    datatypeSubsumptionOf(CC,CP).
+subsumptionOf(CC,CP,Schema) :-
+    anonymousEquivalentClass(CC,CZ,Schema),
+    subsumptionOf(CZ,CP,Schema).
+subsumptionOf(CC,CP,Schema) :- % datatypes
+    datatype(CC,Schema),
+    datatypeSubsumptionOf(CC,CP,Schema).
 
-% This is a dangerous predicate as you need to have fully instantiated arguments.
+:- rdf_meta customDatatype(r,o).
+customDatatype(X,Schema) :-
+    xrdf(X, rdf:type, rdfs:'Datatype',Schema).
+
+:- rdf_meta datatype(r,o).
+datatype(X,Schema) :- customDatatype(X,Schema).
+datatype(X,_) :- baseType(X).
+
+% implements strict class subsumption (CC < CP) [Needs fully instantiated arguments]
 :- rdf_meta strictSubsumptionOf(r,r,o).
-strictSubsumptionOf(CC,owl:'Thing',_) :- CC \= owl:'Nothing'.
+strictSubsumptionOf(CC,owl:'Thing',_) :- CC \= owl:'Thing'.
 strictSubsumptionOf(owl:'Nothing',CP,_) :- CP \= owl:'Nothing'.
 strictSubsumptionOf(CC,CP,Schema) :-
     subClassOf(CC,CP,Schema).
 strictSubsumptionOf(CC,CP,Schema) :-
+    class(CC,Schema),
     unionOf(CP,CC,Schema).
 strictSubsumptionOf(CC,CP,Schema) :-
+    class(CC,Schema),
     intersectionOf(CC,CP,Schema).
 strictSubsumptionOf(CC,CP,Schema) :-
     subClassOf(CC,CZ,Schema),
     strictSubsumptionOf(CZ,CP,Schema).
 strictSubsumptionOf(CC,CP,Schema) :-
+    class(CC,Schema),
     unionOf(CZ,CC,Schema),
     strictSubsumptionOf(CZ,CP,Schema).
 strictSubsumptionOf(CC,CP,Schema) :-
+    class(CC,Schema),
     disjointUnionOf(CZ,CC,Schema),
     strictSubsumptionOf(CZ,CP,Schema).
 strictSubsumptionOf(CC,CP,Schema) :-
+    class(CC,Schema),
     intersectionOf(CC,CZ,Schema), 
     strictSubsumptionOf(CZ,CP,Schema).
-strictSubsumptionOf(CC,CP,_) :- % xsd types
-    datatypeStrictSubsumptionOf(CC,CP).
+strictSubsumptionOf(CC,CP,Schema) :- % xsd and custom data types
+    datatypeStrictSubsumptionOf(CC,CP,Schema).
 
-orphanClass(X,Y,Schema, Reason) :-
+:- rdf_meta basetypeSubsumptionOf(r,r).
+basetypeSubsumptionOf(T,T) :- baseType(T).
+basetypeSubsumptionOf(Sub,Super) :-
+    baseTypeParent(Sub,Parent), basetypeSubsumptionOf(Parent,Super).
+
+:- rdf_meta datatypeSubsumptionOf(r,r).
+datatypeSubsumptionOf(T,T,Schema) :- datatype(T,Schema).
+datatypeSubsumptionOf(Sub,Super,Schema) :-
+    customDatatype(Sub,Schema),
+    unionOf(Super,Sub,Schema).
+datatypeSubsumptionOf(Sub,Super,Schema) :-
+    customDatatype(Sub,Schema),
+    intersectionOf(Sub,Super,Schema).
+datatypeSubsumptionOf(Sub,Super,Schema) :-
+    % This only works because of the strict hierarchy (no derived union / intersections)
+    customDatatype(Sub,Schema),
+    complementOf(Sub,CN,Schema),
+    \+ datatypeSubsumptionOf(CN,Super,Schema).
+datatypeSubsumptionOf(Sub,Super,Schema) :-
+    baseTypeParent(Sub,Parent), datatypeSubsumptionOf(Parent,Super,Schema).
+
+:- rdf_meta datatypeStrictSubsumptionOf(r,r).
+datatypeStrictSubsumptionOf(Sub,Super,_) :-
+    baseTypeParent(Sub,Super).
+datatypeStrictSubsumptionOf(Sub,Super,Schema) :-
+    % DDD probably need one more clause for each owl custom build property
+    baseTypeParent(Sub,Parent),
+    datatypeSubsumptionOf(Parent,Super,Schema).
+
+% Defining orphaned classes.
+orphanClassSC(Schema, Reason) :-
     subClassOf(X,Y,Schema),
     \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a subclass of a valid class ',Y], Message),
@@ -159,7 +316,7 @@ orphanClass(X,Y,Schema, Reason) :-
 	      message=Message,
 	      child=X,
 	      parent=Y].
-orphanClass(X,Y,Schema, Reason) :-
+orphanClassSC(Schema, Reason) :-
     intersectionOf(X,Y,Schema),
     \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X, ' is not an intersection of a valid class ',Y], Message),
@@ -167,7 +324,7 @@ orphanClass(X,Y,Schema, Reason) :-
 	      message=Message,
 	      child=X,
 	      parent=Y].
-orphanClass(X,Y,Schema, Reason) :-
+orphanClassSC(Schema, Reason) :-
     unionOf(X,Y,Schema),
     \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a union of a valid class ',Y], Message),
@@ -176,12 +333,27 @@ orphanClass(X,Y,Schema, Reason) :-
 	      child=X,
 	      parent=Y].
 
-orphanClassSC(Schema,Reason) :- orphanClass(_,_,Schema,Reason).
 
-% subclass cycles
+% Cycles in subsumption diagram
 classCycleHelp(C,S,[],_) :- get_assoc(C,S,true), !.
-classCycleHelp(C,S,[K|P],Schema) :- class(C,Schema), subClassOf(K,C,Schema), 
-				    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
+classCycleHelp(C,S,[K|P],Schema) :-
+    subClassOf(K,C,Schema), 
+    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
+classCycleHelp(C,S,[K|P],Schema) :-
+    unionOf(C,K,Schema), 
+    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
+classCycleHelp(C,S,[K|P],Schema) :-
+    disjointUnionOf(C,K,Schema), 
+    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
+classCycleHelp(C,S,[K|P],Schema) :-
+    intersectionOf(K,C,Schema), 
+    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
+classCycleHelp(C,S,[K|P],Schema) :-
+    equivalentClass(K,C,Schema),
+    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
+classCycleHelp(C,S,[K|P],Schema) :-
+    complementOf(K,C,Schema), 
+    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 
 classCycle(C,P,Schema,Reason) :-
     empty_assoc(S), classCycleHelp(C,S,P,Schema),
@@ -199,25 +371,21 @@ classCycleSC(Schema,Reason) :- classCycle(_,_,Schema,Reason), !.
 :- rdf_meta rdfsProperty(r).
 rdfsProperty(rdfs:label).
 rdfsProperty(rdfs:comment).
+rdfsProperty(rdfs:seeAlso).
 
 :- rdf_meta rdfProperty(r,o).
 rdfProperty(P,Schema) :- 
     xrdf(P,rdf:type,rdf:'Property',Schema).
-
-:- rdf_meta dataProperty(r,o).
-dataProperty(P,Schema) :-
+rdfProperty(P,_) :- rdfsProperty(P).
+	   
+:- rdf_meta datatypeProperty(r,o).
+datatypeProperty(P,Schema) :-
     xrdf(P,rdf:type,owl:'DatatypeProperty',Schema).
-dataProperty(P,_) :- rdfsProperty(P).
+datatypeProperty(P,Schema) :- rdfProperty(P,Schema).
 
 :- rdf_meta annotationProperty(r,o).
 annotationProperty(P,Schema) :-
     xrdf(P,rdf:type,owl:'AnnotationProperty',Schema).
-
-:- rdf_meta objectProperty(r,o).
-objectProperty(P,Schema) :- 
-    xrdf(P,rdf:type,owl:'ObjectProperty',Schema).
-objectProperty(P,Schema) :- 
-    annotationProperty(P,Schema).
 
 :- rdf_meta functionalProperty(r,o).
 functionalProperty(P,Schema) :-
@@ -227,14 +395,22 @@ functionalProperty(P,Schema) :-
 inverseFunctionalProperty(P,Schema) :-
     xrdf(P,rdf:type,owl:'InverseFunctionalProperty',Schema).
 
+:- rdf_meta objectProperty(r,o).
+objectProperty(P,Schema) :- 
+    xrdf(P,rdf:type,owl:'ObjectProperty',Schema).
+objectProperty(P,Schema) :- rdfProperty(P,Schema).
+
 :- rdf_meta property(r,o).
-property(P,Schema) :- dataProperty(P, Schema).
-property(P,Schema) :- objectProperty(P,Schema). 
-property(P,Schema) :- rdfProperty(P,Schema).
+property(P,Schema) :-
+    % Don't predicate over annotations (even if they are otherwise declared as properties.
+    annotationProperty(P,Schema) *-> fail
+    ; (datatypeProperty(P, Schema)
+       ; objectProperty(P,Schema)
+       ; rdfProperty(P,Schema)).
 
 %uniqueProperty(P,Schema) :- property(P,Schema), bagof(P2, property(P2,Schema), L), count(P,L,1).
 
-notUniqueProperty(P,Schema, Reason) :-
+notUniqueProperty(P,Schema,Reason) :-
     property(P,Schema), bagof(P2, property(P2,Schema), L),
     \+ count(P,L,1),
     interpolate([P,' is not a unique property name, some property with this name already exists'],
@@ -243,6 +419,21 @@ notUniqueProperty(P,Schema, Reason) :-
 	    property=P,
 	    message=Message].
 
+propertyTypeOverloadSC(P,Schema,Reason) :- 
+    datatypeProperty(P,Schema), objectProperty(P,Schema),
+    interpolate([P,' is an objectProperty and a datatypeProperty'], Message),
+    Reason=[error=propertyTypeOverload,
+	    property=P,
+	    message=Message].
+
+annotationOverloadSC(P,Schema,Reason) :-
+    (datatypeProperty(P,Schema) ; objectProperty(P,Schema) ; rdfProperty(P,Schema)),
+    annotationProperty(P,Schema),
+    interpolate([P,' is defined as a property and defined as an annotationProperty'], Message),
+    Reason=[error=annotationOverloadSC,
+	    property=P,
+	    message=Message].
+    
 notUniquePropertySC(Schema,Reason) :-
     notUniqueProperty(_,Schema, Reason).
 
@@ -266,8 +457,8 @@ strictSubsumptionPropertiesOf(PC,PP,Schema) :-
 
 orphanProperty(X,Y,Schema,Reason) :-
     subPropertyOf(X,Y,Schema),
-    \+ property(Y,Schema),
-    interpolate([X,' is not a sub-property of ', Y], Message),
+    \+ property(Y,Schema), \+ annotationProperty(Y,Schema),
+    interpolate([X,' is not a sub-property of a valid property ', Y], Message),
     Reason=[error=notSubPropertyOfProperty,
 	    child=X,
 	    parent=Y,
@@ -302,7 +493,7 @@ domain(P,D,Schema) :- xrdf(P,rdfs:domain,D,Schema).
 noImmediateDomainSC(Schema,Reason) :-
     property(P,Schema), \+ rdfsProperty(P),
     \+ domain(P,_,Schema),
-    (dataProperty(P,Schema) -> M='Data property '
+    (datatypeProperty(P,Schema) -> M='Data property '
      ; annotationProperty(P,Schema) -> M='Annotation property '
      ; objectProperty(P,Schema) -> M='Object property '
      ; rdfProperty(P,Schema) -> M='Rdf Property'),
@@ -314,7 +505,7 @@ noImmediateDomainSC(Schema,Reason) :-
 noImmediateRangeSC(Schema,Reason) :-
     property(P,Schema), \+ rdfsProperty(P),
     \+ range(P,_,Schema),
-    (dataProperty(P,Schema) -> M='Data property '
+    (datatypeProperty(P,Schema) -> M='Data property '
      ; annotationProperty(P,Schema) -> M='Annotation property '
      ; objectProperty(P,Schema) -> M='Object property '
      ; rdfProperty(P,Schema) -> M='Rdf Property'),
@@ -334,10 +525,10 @@ invalidDomainSC(Schema,Reason) :-
 	    domain=D].
 
 invalidRangeSC(Schema,Reason) :-
-    dataProperty(P,Schema),
+    datatypeProperty(P,Schema),
     range(P,R,Schema),
-    \+ baseType(R),
-    interpolate(['DataProperty Range ', R, ' is not a valid (or implemented) datatype for property', P,'.'], Message),
+    \+ datatype(R,Schema), \+ rdfProperty(P,Schema),
+    interpolate(['DataProperty Range ', R, ' is not a valid (or implemented) datatype for property ', P,'.'], Message),
     Reason=[error=invalidRange,
 	    message=Message,
 	    property=P,
@@ -345,7 +536,7 @@ invalidRangeSC(Schema,Reason) :-
 invalidRangeSC(Schema,Reason) :-
     objectProperty(P,Schema),
     range(P,R,Schema),
-    \+ class(R,Schema),
+    \+ class(R,Schema), \+ rdfProperty(P,Schema),
     interpolate(['ObjectProperty Range ',R,' is not a valid range for property ',P,'.'],Message),
     Reason=[error=invalidRange,
 	    message=Message,
@@ -388,7 +579,7 @@ rangeNotSubsumedSC(Schema,Reason) :-
     strictSubsumptionPropertiesOf(P,P2,Schema),
     range(P,R,Schema), range(P2,R2,Schema), % DDD too many solutions
     \+ subsumptionOf(R, R2, Schema), 
-    interpolate(['XXX Invalid range on property ', P,
+    interpolate(['Invalid range on property ', P,
 		 ', due to failure of range subsumption.'], Message),
     Reason = [error=rangeNotSubsumed,
 	      message=Message,

@@ -22,12 +22,14 @@
 preTestSchema(classCycleSC).
 preTestSchema(propertyCycleSC).
 % best practice
+testSchema(noImmediateClassSC).
 testSchema(noImmediateDomainSC).
 testSchema(noImmediateRangeSC).
 testSchema(notUniqueClassLabelSC).
 testSchema(notUniqueClassSC).
-testSchema(notUniquePropertySC).
+testSchema(notUniquePropertySC). % still useful with annotationOverloadSC?
 testSchema(schemaBlankNodeSC).
+testSchema(annotationOverloadSC).
 % OWL DL
 testSchema(orphanClassSC).
 testSchema(orphanPropertySC). 
@@ -35,6 +37,7 @@ testSchema(invalidRangeSC).
 testSchema(invalidDomainSC).
 testSchema(domainNotSubsumedSC).
 testSchema(rangeNotSubsumedSC).
+testSchema(propertyTypeOverloadSC).
 
 %%%% Instance Tests
 %%%% Local testing for violation of specific known elements in update.

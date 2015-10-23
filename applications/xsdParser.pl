@@ -81,6 +81,9 @@ time(H,M,S,Z,ZH,ZM) --> twoDigitNatural(H), ":", twoDigitNatural(M), ":", twoDig
 year(SY) --> sign(S), fourDigitNatural(Y),
 	     { SY is S * Y }.
 
+date(SY,Mo,D,Z,ZH,ZM) -->
+    year(SY), "-", twoDigitNatural(Mo), "-", twoDigitNatural(D), timeZone(Z,ZH,ZM).
+
 dateTime(SY,Mo,D,H,M,S,Z,ZH,ZM) -->
     year(SY), "-", twoDigitNatural(Mo), "-", twoDigitNatural(D),
     "T", time(H,M,S,Z,ZH,ZM) .

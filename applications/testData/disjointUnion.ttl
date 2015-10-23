@@ -1,0 +1,32 @@
+@prefix : <http://www.example.org/schema#> .
+@prefix cio: <http://www.w3.org/2015/rdfcio#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+
+:a a owl:DatatypeProperty ;
+   rdfs:domain :A ;
+   rdfs:range xsd:nonNegativeInteger .
+
+:b a owl:DatatypeProperty ;
+   rdfs:domain :B ;
+   rdfs:range xsd:nonNegativeInteger .
+
+:ARestriction a owl:Restriction ;
+	      owl:onProperty :a ;
+	      owl:cardinality "1"^^xsd:nonNegativeInteger .
+
+:BRestriction a owl:Restriction ;
+	      owl:onProperty :b ;
+	      owl:cardinality "1"^^xsd:nonNegativeInteger .
+
+:A a owl:Class ;
+   rdfs:subClassOf :ARestriction .
+   
+:B a owl:Class ;
+   rdfs:subClassOf :BRestriction .
+
+:EitherAorB a owl:Class ;
+	    owl:disjointUnionOf ( :A :B ) .

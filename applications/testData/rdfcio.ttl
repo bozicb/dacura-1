@@ -20,7 +20,7 @@
        rdfs:comment "The object which boxes values" .
 
 :value a owl:FunctionalProperty ,
-         owl:DataProperty ;
+         owl:DatatypeProperty ;
        rdfs:label "value" ;
        rdfs:comment """A property which has a domain of a boxed value, convenient because we want 
                        lists to be quite generic over datatypes and objects, hence 
@@ -65,7 +65,7 @@
 		  	     	indices.""" . 	
 
 :index a owl:FunctionalProperty ,
-         owl:DataProperty ;
+         owl:DatatypeProperty ;
        rdfs:domain :sequentialMember ;
        rdfs:range xsd:nonNegativeInteger ;
        rdfs:label "The concrete index of a sequantial member property." .

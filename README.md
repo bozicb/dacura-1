@@ -6,10 +6,6 @@ The API we use for constraint checking inserts/updates/deletes involves a segreg
 
 The reasoning behind this is that full constraint checking is currently necessary for changes to the schema (though this is not in fact completely necessary and future implementations might hone this down to only checking necessary constraints), while instance updates only require local checking, are liable to be more frequent and must have better performance.
 
-A reference example for checking is provided in the dacura repository: 
-
-ssh://gavin@tcdfame2.scss.tcd.ie:22/var/git/dacura/
-
 Under services/testInstanceUpdates.py
 
 The format of inserts/deletes

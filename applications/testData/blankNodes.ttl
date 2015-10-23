@@ -138,13 +138,13 @@ sghd:EventWithDuration a owl:Class;
 	rdfs:comment "A temporally scoped abstract concept describing events.".
 
 # Properties
-sghd:start a owl:DataProperty;
+sghd:start a owl:DatatypeProperty;
 	rdfs:label "start" ;
 	rdfs:domain sghd:ValueWithDuration;
 	rdfs:range  xsd:dateTime;
 	rdfs:comment "A property used to associate the start time with a value with duration." .
 
-sghd:end a owl:DataProperty;
+sghd:end a owl:DatatypeProperty;
 	rdfs:label "end" ;
 	rdfs:domain sghd:ValueWithDuration;
 	rdfs:range  xsd:dateTime;
@@ -180,21 +180,21 @@ sghd:includesUnitOfTerritory a owl:ObjectProperty;
 	rdfs:range  sghd:UnitOfTerritory;
 	rdfs:comment "A property used to associate a CollectionOfTerritories with its consituent UnitsOfTerritory." .
 
-sghd:startDate a owl:DataProperty;
+sghd:startDate a owl:DatatypeProperty;
 	rdfs:label "start date" ;
 	rdfs:domain sghd:TemporalEntity;
 	rdfs:range  xsd:dateTime;
 	rdfs:comment "A property used to define the start of the temporal bounds of a TemporalEntity. For example, corresponds to the Duration start date for a Polity from the Seshat codebook." .
 # Note could use OWL-style property scoping to reuse sghd:end
 
-sghd:endDate a owl:DataProperty;
+sghd:endDate a owl:DatatypeProperty;
 	rdfs:label "end date" ;
 	rdfs:domain sghd:TemporalEntity;
 	rdfs:range  xsd:dateTime;
 	rdfs:comment "A property used to define the end of the temporal bounds of a TemporalEntity. For example, corresponds to the Polity Duration end date from the Seshat codebook." .
 # Note could use OWL-style property scoping to reuse sghd:end
 
-sghd:polygon a owl:DataProperty;
+sghd:polygon a owl:DatatypeProperty;
 	rdfs:label "polygon" ;
 	rdfs:domain sghd:UnitOfTerritory;
 	rdfs:range  xsd:string;

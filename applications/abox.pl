@@ -21,6 +21,8 @@
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils). 
 :- use_module(datatypes).
+:- use_module(xsdParser).
+:- use_module(library(uri)).
 :- use_module(tbox).
 
 % X is invalid at C for Reason
@@ -56,7 +58,7 @@ invalid(X,CC,Instance,Schema,Reason) :-
     forall(member(C,L),
 	   invalid(X,C,Instance,Schema,_)),
     Reason = [error=objectInvalidAtClass,
-	      message='No element of union is valid',
+	      message='Element is not valid at any class of union',
 	      element=X,
 	      class=CC].
 invalid(X,CC,Instance,Schema, Reason) :-
@@ -206,21 +208,65 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      cardinality=A,
 	      qualifiedOn=C,
 	      class=CR].
+neltRestriction(X,CR,Instance,Schema,Reason) :-
+    xrdf(CR,owl:onProperty,OP,Schema),
+    xrdf(CR,owl:hasValue,V,Schema),
+    inferredEdge(X,OP,Y,Instance,Schema),
+    Y \= V, 
+    Reason = [error=notRestrictionElement,
+	      message='hasValue constraint violated',
+	      element=X,
+	      value=V,
+	      class=CR].
+
 
 % X is not an element of CP for Reason
 :- rdf_meta nelt(r,r,o,o,t).
 nelt(X,CC,Instance,Schema,Reason) :-
+    class(CC,Schema),
     invalid(X,CC,Instance,Schema,Reason).
 nelt(X,CC,Instance,Schema,Reason) :-
     subsumptionOf(CC,CP,Schema),
     invalid(X,CP,Instance,Schema,Reason).
-%% Reason = [error=doesNotSubsume, 
-%%      		 message='Subsumption Impossible',
-%%      		 element=X,
-%%      		 class=CP,
-%% 		 instanceClass=CC]).
-nelt(X,CP,_,_,Reason) :-
+nelt(X,CP,_,_,Reason) :- 
+    baseType(CP),
     nbasetypeElt(X,CP,Reason).
+nelt(X,CP,_,Schema,Reason) :-
+    customDatatype(CP,Schema),
+    xrdf(CP,rdfs:oneOf,ListObj,Schema),
+    collect(ListObj,L,Schema),
+    \+ member(X,L),
+    Reason = [error=dataInvalidAtDatatype,
+	      message='Not an element of enumeration (oneOf)',
+	      element=X,
+	      datatype=CP].
+nelt(X,CP,_,Schema,Reason) :-
+    customDatatype(CP,Schema),
+    xrdf(CP,owl:intersectionOf,ListObj,Schema),
+    collect(ListObj,L,Schema),
+    member(C,L),
+    nbasetypeElt(X,C,Reason),
+    Reason = [error=dataInvalidAtDatatype,
+	      message='Not an element of intersection',
+	      element=X,
+	      datatype=CP].
+nelt(X,CP,_,Schema,Reason) :-
+    customDatatype(CP,Schema),
+    xrdf(CP,owl:unionOf,ListObj, Schema),
+    collect(ListObj,L,Schema),
+    forall(member(C,L),
+	   nbasetypeElt(X,C,_)),
+    Reason = [error=dataInvalidAtDatatype,
+	      message='Not an element of union',
+	      element=X,
+	      class=CP].
+nelt(X,CC,_,Schema,Reason) :-
+    rdf_is_literal(X),
+    \+ customDatatype(CC,Schema), \+ baseType(CC),
+    Reason = [error=dataInvalidAtDatatype,
+	      message='Literal can not be an object',
+	      element=X,
+	      class=CC].
 
 %nrange(P,R,Schema) :- xrdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,Schema).
 
@@ -369,3 +415,491 @@ instanceBlankNodeIC(_,_,X,Instance,Schema,Reason) :-
     Reason=[error=instanceBlankNode,
 	    message=Message,
 	    object=X].		
+
+daysInMonth(_,1,31).
+daysInMonth(Y,2,D) :- Ans is Y mod 4, Ans = 0 -> D = 29 ; D = 28 .
+daysInMonth(_,3,31).
+daysInMonth(_,4,30).
+daysInMonth(_,5,31).
+daysInMonth(_,6,30).
+daysInMonth(_,7,31).
+daysInMonth(_,8,31).
+daysInMonth(_,9,30).
+daysInMonth(_,10,31).
+daysInMonth(_,11,30).
+daysInMonth(_,12,31).
+
+:- rdf_meta nbasetypeElt(r,r,t).
+nbasetypeElt(literal(S),xsd:string,Reason) :-
+    \+ atom(S), term_to_atom(S,A)
+    ->
+    Reason = [error=nbasetypeElt,
+	      message='Expected atom, found term',
+	      literal=A].
+nbasetypeElt(literal(lang(S,L)),xsd:string,Reason) :-
+    \+ atom(S), term_to_atom(lang(S,L),A)
+    ->
+    Reason = [error=nbasetypeElt,
+	      message='Expected atom in string section, found term.',
+	      literal=A].
+nbasetypeElt(literal(lang(S,L)),xsd:string,Reason) :-
+    \+ atom(L), term_to_atom(lang(S,L),A)
+    ->
+    Reason = [error=nbasetypeElt,
+	      message='Expected atom in language section, found term.',
+	      literal=A].
+nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
+    \+ atom(S), term_to_atom(type(T,S),A)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Expected atom, found term as element.',
+	      literal=A].
+nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
+    \+ atom(T), term_to_atom(type(T,S),A)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Expected atom, found term as type.',
+	      literal=A].
+nbasetypeElt(literal(type(T1,_)),T2,Reason) :-
+    \+ basetypeSubsumptionOf(T1,T2)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Could not subsume type1 with type2',
+	      type1=T1,
+	      type2=T2].
+nbasetypeElt(literal(type(_,S)),xsd:boolean,Reason) :-
+    \+ member(S,['true','false','1','0']), term_to_atom(S,A)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed boolean.',
+	      literal=A,
+	      type='xsd:boolean'].
+nbasetypeElt(literal(type(_,S)),xsd:decimal,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:decimal(_),C,[]))
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed decimal.',
+	      literal=S,
+	      type='xsd:decimal'].
+nbasetypeElt(literal(type(_,S)),xsd:integer,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed integer.',
+	      literal=S,
+	      type='xsd:integer'].
+nbasetypeElt(literal(type(_,S)),xsd:double,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:double(_,_,_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed double.',
+	      literal=S,
+	      type='xsd:double'].
+nbasetypeElt(literal(type(_,S)),xsd:double,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:double(M,_,_),C,[]),
+    abs(M, N), Max is 2 ^ 53, N > Max
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed double: Mantisa is massive.',
+	      literal=S,
+	      type='xsd:double'].
+nbasetypeElt(literal(type(_,S)),xsd:double,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:double(_,E,_),C,[]),
+    (E > 970 ; E < -1075)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed double: exponent excessive.',
+	      literal=S,
+	      type='xsd:double'].
+nbasetypeElt(literal(type(_,S)),xsd:float,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:double(_,_,_),C,[]))
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed float.',
+	      literal=S,
+	      type='xsd:float'].
+nbasetypeElt(literal(type(_,S)),xsd:float,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:double(M,_,_),C,[]),
+    abs(M, N), Max is 2 ^ 24, N > Max
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed float: mantisa is massive.',
+	      literal=S,
+	      type='xsd:float'].
+nbasetypeElt(literal(type(_,S)),xsd:float,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:double(_,E,_),C,[]),
+    (E > 104 ; E < -149)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed float: exponent excessive.',
+	      literal=S,
+	      type='xsd:float'].
+nbasetypeElt(literal(type(_,S)),xsd:time,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:time(_,_,_,_,_,_),C,[]))
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:time',
+	      literal=S,
+	      type='xsd:time'].
+nbasetypeElt(literal(type(_,S)),xsd:time,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:time(H,M,S,Z,ZH,ZM),C,[]),
+    (H > 23 ; M > 59 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59 )
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:time : parameter out of range.',
+	      literal=S,
+	      type='xsd:time'].
+nbasetypeElt(literal(type(_,S)),xsd:date,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:date(_,_,_,_,_,_),C,[]))
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:date.',
+	      literal=S,
+	      type='xsd:date'].
+nbasetypeElt(literal(type(_,S)),xsd:dateTime,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:dateTime(_,_,_,_,_,_,_,_,_),C,[]))
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:dateTime.',
+	      literal=S,
+	      type='xsd:dateTime'].
+nbasetypeElt(literal(type(_,S)),xsd:dateTime,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:dateTime(SY,Mo,D,H,M,S,Z,ZH,ZM),C,[]),
+    (Mo > 12 ; Mo < 1
+     ; daysInMonth(SY,Mo,Days), D > Days
+     ; D < 1 ; H > 23 ; M > 59
+     ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59 )
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:dateTime : parameter out of range.',
+	      literal=S,
+	      type='xsd:dateTime'].
+nbasetypeElt(literal(type(_,S)),xsd:gYear,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:gYear(_,_,_,_),C,[]))
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gYear',
+	      literal=S,
+	      type='xsd:gYear'].
+nbasetypeElt(literal(type(_,S)),xsd:gYear,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:gYear(_,Z,ZH,ZM),C,[]),
+    ((\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gYear : parameters out of range',
+	      literal=S,
+	      type='xsd:gYear'].
+nbasetypeElt(literal(type(_,S)),xsd:gMonth,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:gMonth(_,_,_,_),C,[]))
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:Month',
+	      literal=S,
+	      type='xsd:gMonth'].
+nbasetypeElt(literal(type(_,S)),xsd:gMonth,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:gMonth(M,Z,ZH,ZM),C,[]),
+    (M < 12 ; M > 1 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
+    -> 
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gMonth : parameters out of range',
+	      literal=S,
+	      type='xsd:gMonth'].
+nbasetypeElt(literal(type(_,S)),xsd:gDay,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:gDay(_,_,_,_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gMonth',
+	      literal=S,
+	      type='xsd:gMonth'].
+nbasetypeElt(literal(type(_,S)),xsd:gDay,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:gDay(D,Z,ZH,ZM),C,[]),
+    (D < 1 ; D > 31 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gMonth : parameters out of range',
+	      literal=S,
+	      type='xsd:gMonth'].
+nbasetypeElt(literal(type(_,S)),xsd:gYearMonth,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:gYearMonth(_,_,_,_,_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gYearMonth',
+	      literal=S,
+	      type='xsd:gYearMonth'].
+nbasetypeElt(literal(type(_,S)),xsd:gYearMonth,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:gYearMonth(_,M,Z,ZH,ZM),C,[]),
+    (M > 12 ; M < 1 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gYearMonth : parameters out of range',
+	      literal=S,
+	      type='xsd:gYearMonth'].
+nbasetypeElt(literal(type(_,S)),xsd:gMonthDay,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:gMonthDay(_,_,_,_,_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gYearMonth',
+	      literal=S,
+	      type='xsd:gMonthDay'].
+nbasetypeElt(literal(type(_,S)),xsd:gMonthDay,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:gMonthDay(M,D,Z,ZH,ZM),C,[]),
+    (M > 12 ; M < 1 ; D < 1 ; D > 31 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
+    ->
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:gMonthDay : parameters out of range',
+	      literal=S,
+	      type='xsd:gMonthDay'].
+nbasetypeElt(literal(type(_,S)),xsd:duration,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:duration(_,_,_,_,_,_,_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:duration',
+	      literal=S,
+	      type='xsd:duration'].
+nbasetypeElt(literal(type(_,S)),xsd:yearMonthDuration,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:yearMonthDuration(_,_,_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:yearMonthDuration',
+	      literal=S,
+	      type='xsd:yearMonthDuration'].
+nbasetypeElt(literal(type(_,S)),xsd:dayTimeDuration,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:dayTimeDuration(_,_,_,_,_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:dayTimeDuration',
+	      literal=S,
+	      type='xsd:dayTimehDuration'].
+nbasetypeElt(literal(type(_,S)),xsd:byte,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:byte',
+	      literal=S,
+	      type='xsd:byte'].
+nbasetypeElt(literal(type(_,S)),xsd:byte,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
+    (I < -128 ; I > 127 )
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:byte: out of range.',
+	      literal=S,
+	      type='xsd:byte'].
+nbasetypeElt(literal(type(_,S)),xsd:short,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:short',
+	      literal=S,
+	      type='xsd:short'].
+nbasetypeElt(literal(type(_,S)),xsd:short,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
+    (I < -32768 ; I > 32767 )
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:short: out of range.',
+	      literal=S,
+	      type='xsd:short'].
+nbasetypeElt(literal(type(_,S)),xsd:int,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:int',
+	      literal=S,
+	      type='xsd:int'].
+nbasetypeElt(literal(type(_,S)),xsd:int,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
+    (I < -2147483648 ; I > 2147483647 )
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:int: out of range.',
+	      literal=S,
+	      type='xsd:int'].
+nbasetypeElt(literal(type(_,S)),xsd:long,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:long',
+	      literal=S,
+	      type='xsd:long'].
+nbasetypeElt(literal(type(_,S)),xsd:long,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
+    (I < -9223372036854775808 ; I > 9223372036854775807 )
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:long: out of range.',
+	      literal=S,
+	      type='xsd:long'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedByte,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:unsignedByte',
+	      literal=S,
+	      type='xsd:unsignedByte'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedByte,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    (I < 0 ; I > 255 )
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:unsignedByte: out of range.',
+	      literal=S,
+	      type='xsd:unsignedByte'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedShort,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:unsignedShort',
+	      literal=S,
+	      type='xsd:unsignedShort'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedShort,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    (I < 0 ; I > 65535 )
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:unsignedShort: out of range.',
+	      literal=S,
+	      type='xsd:unsignedShort'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedInt,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:unsignedInt',
+	      literal=S,
+	      type='xsd:unsignedInt'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedInt,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    (I < 0 ; I > 4294967295 )
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:unsignedInt: out of range.',
+	      literal=S,
+	      type='xsd:unsignedInt'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedLong,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:unsignedLong',
+	      literal=S,
+	      type='xsd:unsignedLong'].
+nbasetypeElt(literal(type(_,S)),xsd:unsignedLong,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    (I < 0 ; I > 18446744073709551615 )
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:unsignedLong: out of range.',
+	      literal=S,
+	      type='xsd:unsignedLong'].
+nbasetypeElt(literal(type(_,S)),xsd:positiveInteger,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:positiveInteger',
+	      literal=S,
+	      type='xsd:positiveInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:positiveInteger,Reason) :-
+    atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
+    I < 1 
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:positiveInteger: out of range.',
+	      literal=S,
+	      type='xsd:positiveInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:nonNegativeInteger,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:nonNegativeInteger',
+	      literal=S,
+	      type='xsd:nonNegativeInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:negativeInteger,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:negativeInteger(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:negativeInteger',
+	      literal=S,
+	      type='xsd:negativeInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:nonPositiveInteger,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:nonPositiveInteger(_),C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:nonPositiveInteger',
+	      literal=S,
+	      type='xsd:nonPositiveInteger'].
+nbasetypeElt(literal(type(_,S)),xsd:base64Binary,Reason) :-
+    \+ (atom_codes(S,C), phrase(xsdParser:base64Binary,C,[]))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:base64Binary',
+	      literal=S,
+	      type='xsd:base64Binary'].
+nbasetypeElt(literal(type(_,S)),xsd:anyURI,Reason) :-
+    \+ uri_components(S,_)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:anyUri',
+	      literal=S,
+	      type='xsd:anyURI'].
+nbasetypeElt(literal(type(_,S)),xsd:language,Reason) :-
+    \+ uri_components(xsdParser:language,_)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:language',
+	      literal=S,
+	      type='xsd:language'].
+nbasetypeElt(literal(type(_,S)),xsd:normalizedString,Reason) :-
+    \+ uri_components(xsdParser:normalizedString,_)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:normalizedString',
+	      literal=S,
+	      type='xsd:normalizedString'].
+nbasetypeElt(literal(type(_,S)),xsd:token,Reason) :-
+    \+ uri_components(xsdParser:normalizedString,_)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:token',
+	      literal=S,
+	      type='xsd:token'].
+nbasetypeElt(literal(type(_,S)),xsd:'NMTOKEN',Reason) :-
+    \+ uri_components(xsdParser:nmtoken,_)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:NMTOKEN',
+	      literal=S,
+	      type='xsd:NMTOKEN'].
+nbasetypeElt(literal(type(_,S)),xsd:'Name',Reason) :-
+    \+ uri_components(xsdParser:name,_)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:Name',
+	      literal=S,
+	      type='xsd:Name'].
+nbasetypeElt(literal(type(_,S)),xsd:'NCName',Reason) :-
+    \+ uri_components(xsdParser:ncname,_)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:NCName',
+	      literal=S,
+	      type='xsd:NCName'].
+nbasetypeElt(literal(type(_,S)),xsd:'NCName',Reason) :-
+    \+ uri_components(xsdParser:ncname,_)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed xsd:NCName',
+	      literal=S,
+	      type='xsd:NCName'].
+nbasetypeElt(literal(T),rdf:'PlainLiteral',Reason) :-
+    (lang(_,_) \= T ; \+ atom(T))
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed rdf:PlainLiteral',
+	      literal=T,
+	      type='rdf:PlainLiteral'].
+nbasetypeElt(X,rdfs:'Literal',Reason) :-
+    literal(_) \= X, term_to_atom(X,T)
+    ->   
+    Reason = [error=nbasetypeElt, 
+	      message='Not a well formed rdfs:Literal',
+	      literal=T,
+	      type='rdfs:Literal'].

@@ -95,8 +95,11 @@ dacura_schema_update(Request) :-
     
 %    write_canonical(Log,Witnesses),
     %json_write(Log,Witnesses),
+    
     fixup_literals(Witnesses,JSON),
+
     % Witnesses=Delta,
+
     json_write(Out,JSON).
 
     
