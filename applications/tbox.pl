@@ -61,8 +61,8 @@ class(X,Schema) :- equivalentClass(X,Y,Schema), class(Y,Schema).
 
 :- rdf_meta restriction(r,o).
 restriction(R,Schema) :- xrdf(R, rdf:type, owl:'Restriction', Schema).
-restriction(R,Schema) :- subClassOf(X,Y,Schema), restriction(Y,Schema).
-restriction(R,Schema) :- equivalentClass(X,Y,Schema), restriction(Y,Schema).
+restriction(R,Schema) :- subClassOf(R,R2,Schema), restriction(R2,Schema).
+restriction(R,Schema) :- equivalentClass(R,R2,Schema), restriction(R2,Schema).
 
 % A class is used without a class definition.
 noImmediateClassSC(Schema, Reason) :-
@@ -337,27 +337,21 @@ orphanClassSC(Schema, Reason) :-
 % Cycles in subsumption diagram
 classCycleHelp(C,S,[],_) :- get_assoc(C,S,true), !.
 classCycleHelp(C,S,[K|P],Schema) :-
-    class(C,Schema),
     subClassOf(K,C,Schema), 
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
-    class(C,Schema),
-    unionOf(K,C,Schema), 
+    unionOf(C,K,Schema), 
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
-    class(C,Schema),
-    disjointUnionOf(K,C,Schema), 
+    disjointUnionOf(C,K,Schema), 
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
-    class(C,Schema),
     intersectionOf(K,C,Schema), 
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
-    class(C,Schema),
     equivalentClass(K,C,Schema),
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
-    class(C,Schema),
     complementOf(K,C,Schema), 
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 

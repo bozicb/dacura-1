@@ -13,11 +13,9 @@
 tests([instance=instance, schema=blankNodes, tests=[schemaBlankNodeSC]],
       [json([error=instanceBlankNode, message='The object __blankNodes1 is a blank node', object='__blankNodes1'])]).
 tests([instance=checkInstanceDomains, schema=validSchema, tests=[invalidEdgeIC]],
-      [json([=(error,nbasetypeElt),=(message,'Could not subsume type1 with type2'),=(type1,'http://www.w3.org/2001/XMLSchema#dateTime'),=(type2,'http://dacura.cs.tcd.ie/data/seshat#Territory')])]).
-tests([instance=checkInstanceRanges, schema=validSchema, tests=[invalidEdgeIC]],
-      [json([=(error,nbasetypeElt),=(message,'Could not subsume type1 with type2'),=(type1,'http://www.w3.org/2001/XMLSchema#integer'),=(type2,'http://dacura.cs.tcd.ie/data/seshat#QualifiedTerritory')])]).
+      [json([=(error,dataInvalidAtDatatype),=(message,'Literal can not be an object'),=(element,literal(type('http://www.w3.org/2001/XMLSchema#dateTime','2002-09-24+06:00'))),=(class,'http://dacura.cs.tcd.ie/data/seshat#Territory')])]).
 tests([instance=instance, schema=classCycles, tests=[classCycleSC]],
-      [json([=(error,classCycle),=(message,'Class, http://dacura.cs.tcd.ie/data/seshat#TemporalEntity has a class cycle with path: [\'http://dacura.cs.tcd.ie/data/seshat#UnitOfSocialOrganisation\',\'http://dacura.cs.tcd.ie/data/seshat#TemporalEntity\']'),=(class,'http://dacura.cs.tcd.ie/data/seshat#TemporalEntity'),=(path,['http://dacura.cs.tcd.ie/data/seshat#UnitOfSocialOrganisation','http://dacura.cs.tcd.ie/data/seshat#TemporalEntity'])])]).
+      [json([=(error,classCycle),=(message,'Class, http://dacura.cs.tcd.ie/data/seshat#UnitOfSocialOrganisation has a class cycle with path: [\'http://dacura.cs.tcd.ie/data/seshat#TemporalEntity\',\'http://dacura.cs.tcd.ie/data/seshat#UnitOfSocialOrganisation\']'),=(class,'http://dacura.cs.tcd.ie/data/seshat#UnitOfSocialOrganisation'),=(path,['http://dacura.cs.tcd.ie/data/seshat#TemporalEntity','http://dacura.cs.tcd.ie/data/seshat#UnitOfSocialOrganisation'])])]).
 tests([instance=instance, schema=duplicateClasses, tests=[notUniqueClassSC]],
       []). % Don't see how to fix this at the moment due to enforced cardinality of 0/1
 tests([instance=instance, schema=invalidDomain, tests=[invalidDomainSC]],
@@ -38,7 +36,7 @@ tests([instance=instance, schema=propertyCycles, tests=[propertyCycleSC]],
 tests([instance=instance, schema=typeCheck, tests=[edgeOrphanInstanceIC]],      
       [json([=(error,edgeOrphanInstance),=(message,'Instance domain class is not valid'),=(subject,'http://dacura.cs.tcd.ie/data/seshat#thing'),=(predicate,'http://dacura.cs.tcd.ie/data/seshat#someproperty'),=(object,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey'),=(class,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey')]),json([=(error,edgeOrphanInstance),=(message,'Instance domain class is not valid'),=(subject,'http://dacura.cs.tcd.ie/data/seshat#thing'),=(predicate,'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),=(object,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey'),=(class,'http://dacura.cs.tcd.ie/data/seshat#funkymonkey')])]).
 tests([instance=rdfcioInstance, schema=rdfcio, tests=[invalidEdgeIC]],
-      [json([=(error,objectInvalidAtClass),=(message,'No element of union is valid'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'http://www.w3.org/2015/rdfcio#List')])]).
+      [json([=(error,objectInvalidAtClass),=(message,'Element is not valid at any class of union'),=(element,'http://www.w3.org/2015/rdfcio/data#notNil'),=(class,'http://www.w3.org/2015/rdfcio#List')])]).
 tests([instance=disjointUnionInstance, schema=disjointUnion, tests=[invalidEdgeIC]],
       [json([=(error,objectInvalidAtClass),=(message,'More than one branch of disjointUnion is valid.'),=(element,'http://www.example.org/data#eltAB'),=(class,'http://www.example.org/schema#EitherAorB')])]).
 

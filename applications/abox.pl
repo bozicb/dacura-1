@@ -260,6 +260,13 @@ nelt(X,CP,_,Schema,Reason) :-
 	      message='Not an element of union',
 	      element=X,
 	      class=CP].
+nelt(X,CC,_,Schema,Reason) :-
+    rdf_is_literal(X),
+    \+ customDatatype(CC,Schema), \+ baseType(CC),
+    Reason = [error=dataInvalidAtDatatype,
+	      message='Literal can not be an object',
+	      element=X,
+	      class=CC].
 
 %nrange(P,R,Schema) :- xrdf(P2, rdfs:range, R, Schema), subsumptionPropertiesOf(P,P2,Schema).
 
