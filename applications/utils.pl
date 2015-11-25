@@ -1,7 +1,7 @@
 :- module(utils,[
 	         getKey/4, count/3, path_end/2, render/2, convert_quads/2, json_to_literal/2,
 		 interpolate/2, uniqueSolns/3,
-		 fixup_literals/2
+		 fixup_literals/2, jsonify/2
 		]).
 
 % convenience functions
@@ -87,3 +87,19 @@ uniqueSolns(Template,Predicate,Collection) :-
     (setof(Template, Predicate, CollectionX)
      -> Collection=CollectionX
      ; Collection=[]).
+
+
+% convert lists into json
+jsonify(A,A) :-
+    atom(A) ; number(A).
+jsonify(A=B,A=Bp) :-
+%    write(B),
+    jsonify(B,Bp).
+jsonify(L,Lp) :-
+    is_list(L),
+    \+ member(_=_,L), % is a simple array
+    maplist(jsonify,L,Lp).
+jsonify(L,json(Lp)) :-
+    is_list(L),
+    \+ \+ member(_=_,L), % is a valid object
+    maplist(jsonify,L,Lp).

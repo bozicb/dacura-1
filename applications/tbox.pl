@@ -2,13 +2,18 @@
 	        %%% TBox predicates
 	        class/2, restriction/2, classOrRestriction/2,
 		subClassOf/3, unionOf/3, intersectionOf/3, subClassStrict/3,
+		disjointUnionOf/3, 
 		subsumptionOf/3, strictSubsumptionOf/3, complementOf/3,
+
+		unionOfList/3, intersectionOfList/3, disjointUnionOfList/3, 
+		
 		datatypeProperty/2, objectProperty/2, annotationProperty/2,
 		property/2, subPropertyOf/3, subsumptionPropertiesOf/3,
 		range/3, domain/3, collect/3, functionalProperty/2,
 		inverseFunctionalProperty/2, restrictionOnProperty/3,
 		datatypeSubsumptionOf/3, basetypeSubsumptionOf/2,
-		customDatatype/2,
+		customDatatype/2, datatype/2,
+		strictSubsumptionPropertiesOf/3,
 		
 		%%% SC == Schema Constraints
 		%%% constraints must be pred/2
@@ -170,11 +175,21 @@ unionOf(C,U,Schema) :-
     collect(ListObj,L,Schema),
     member(U,L).
 
+:- rdf_meta unionOfList(r,r,o).
+unionOfList(C,UList,Schema) :- 
+    xrdf(C,owl:unionOf,ListObj, Schema),
+    collect(ListObj,UList,Schema).
+
 :- rdf_meta disjointUnionOf(r,r,o).
 disjointUnionOf(C,U,Schema) :-
     xrdf(C,owl:disjointUnionOf,ListObj, Schema),
     collect(ListObj,L,Schema),
     member(U,L).
+
+:- rdf_meta disjointUnionOfList(r,r,o).
+disjointUnionOfList(C,UList,Schema) :- 
+    xrdf(C,owl:disjointUnionOf,ListObj, Schema),
+    collect(ListObj,UList,Schema).
 
 :- rdf_meta intersectionOf(r,r,o).
 intersectionOf(C,I,Schema) :-
@@ -182,15 +197,29 @@ intersectionOf(C,I,Schema) :-
     collect(ListObj,L,Schema),
     member(I,L).
 
+:- rdf_meta intersectionOfList(r,r,o).
+intersectionOfList(C,IList,Schema) :- 
+    xrdf(C,owl:intersectionOf,ListObj, Schema),
+    collect(ListObj,IList,Schema).
+
 :- rdf_meta oneOf(r,r,o).
 oneOf(CC,X,Schema) :-
     xrdf(CC,owl:oneOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     member(X,L).
 
+:- rdf_meta oneOfList(r,r,o).
+oneOfList(C,OneList,Schema) :- 
+    xrdf(C,owl:oneOf,ListObj, Schema),
+    collect(ListObj,OneList,Schema).
+
 :- rdf_meta complementOf(r,r,o).
 complementOf(CC,CN,Schema) :-
     xrdf(CC,owl:complementOf,CN,Schema).
+
+:- rdf_meta datatypeComplementOf(r,r,o).
+datatypeComplementOf(CC,CN,Schema) :-
+    xrdf(CC,owl:datatypeComplementOf,CN,Schema).
 
 :- rdf_meta equivalentClass(r,r,o).
 equivalentClass(CC,CE,Schema) :-
@@ -294,7 +323,7 @@ datatypeSubsumptionOf(Sub,Super,Schema) :-
 datatypeSubsumptionOf(Sub,Super,Schema) :-
     % This only works because of the strict hierarchy (no derived union / intersections)
     customDatatype(Sub,Schema),
-    complementOf(Sub,CN,Schema),
+    datatypeComplementOf(Sub,CN,Schema),
     \+ datatypeSubsumptionOf(CN,Super,Schema).
 datatypeSubsumptionOf(Sub,Super,Schema) :-
     baseTypeParent(Sub,Parent), datatypeSubsumptionOf(Parent,Super,Schema).
@@ -353,6 +382,9 @@ classCycleHelp(C,S,[K|P],Schema) :-
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 classCycleHelp(C,S,[K|P],Schema) :-
     complementOf(K,C,Schema), 
+    put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
+classCycleHelp(C,S,[K|P],Schema) :-
+    datatypeComplementOf(K,C,Schema), 
     put_assoc(C,S,true,S2), classCycleHelp(K,S2,P,Schema).
 
 classCycle(C,P,Schema,Reason) :-
@@ -489,7 +521,7 @@ range(P,R,Schema) :- xrdf(P,rdfs:range,R,Schema).
 
 :- rdf_meta domain(r,r,o).
 domain(P,D,Schema) :- xrdf(P,rdfs:domain,D,Schema).
-
+		
 noImmediateDomainSC(Schema,Reason) :-
     property(P,Schema), \+ rdfsProperty(P),
     \+ domain(P,_,Schema),

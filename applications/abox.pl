@@ -1,6 +1,7 @@
 :- module(abox,[
 		%% Predicates
-		
+	        instanceClass/3,
+	      
 		%%%% IC = Instance Constraints 
 		%% Constraints must be pred/6 
 		%% Best practice

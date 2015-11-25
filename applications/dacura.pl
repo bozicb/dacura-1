@@ -18,7 +18,8 @@
 :- use_module(library(semweb/rdf_persistency)).
 :- use_module(checker).
 :- use_module(test).
-
+:- use_module(query). 
+	   
 % Logging / Turn off for production
 :- use_module(library(http/http_log)).
 
@@ -29,7 +30,9 @@ http:location(dacura, '/dacura', []).
 :- http_handler(dacura(instance), dacura_instance_update, []). 
 :- http_handler(dacura(validate), dacura_validate, []).
 :- http_handler(dacura(schema_validate), dacura_schema_validate, []).
-:- http_handler(dacura(test), dacura_test, []). 
+:- http_handler(dacura(test), dacura_test, []).
+:- http_handler(dacura(stub), dacura_stub, []).
+:- http_handler(dacura(entity), dacura_entity, []). 
 
 :- use_module(library(http/json_convert)). 
 :- use_module(utils). 
@@ -199,7 +202,32 @@ dacura_test(_Request) :-
     fixup_literals(Witnesses,JSON),
     json_write(Out,JSON).
 
+dacura_stub(Request) :- 
+    http_parameters(Request, [], [form_data(Data)]), 
 
+    format('Content-type: application/json~n~n'), 
+
+    % Get current stdout 
+    current_output(Out), 
+    member(class=Class, Data),
+    member(schema=Schema, Data),
+    classFrame(Class,Schema,Frame),
+    jsonify(Frame,JSON),
+    json_write(Out,JSON).
+
+dacura_entity(Request) :- 
+    http_parameters(Request, [], [form_data(Data)]), 
+
+    format('Content-type: application/json~n~n'),
+
+    % get stdout
+    current_output(Out), 
+
+    member(schema=Schema,Data),
+    allEntities(Schema,AllEntities),
+    jsonify(AllEntities,JSON),
+    json_write(Out,JSON).
+    
 /*
 graphs_instance_schema(_Request) :-
 	findall(Count-Graph,
