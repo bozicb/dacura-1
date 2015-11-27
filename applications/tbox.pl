@@ -9,7 +9,9 @@
 		
 		datatypeProperty/2, objectProperty/2, annotationProperty/2,
 		property/2, subPropertyOf/3, subsumptionPropertiesOf/3,
-		range/3, domain/3, collect/3, functionalProperty/2,
+		range/3, domain/3, anyRange/3, anyDomain/3,
+		mostSpecificDomain/3, mostSpecificRange/3,
+		collect/3, functionalProperty/2,
 		inverseFunctionalProperty/2, restrictionOnProperty/3,
 		datatypeSubsumptionOf/3, basetypeSubsumptionOf/2,
 		customDatatype/2, datatype/2,
@@ -474,18 +476,28 @@ notUniquePropertySC(Schema,Reason) :-
 subPropertyOf(X,Y,Schema) :- xrdf(X,rdfs:subPropertyOf,Y,Schema).
 
 % Transitive reflexive closure of Subproperty relation.
-:- rdf_meta subsumptionPropertiesOf(r,r,o). 
+:- rdf_meta subsumptionPropertiesOf(r,r,o).
+subsumptionPropertiesOf(PC,PC,_).
 subsumptionPropertiesOf(PC,PP,Schema) :-
     subPropertyOf(PC, PZ, Schema),
-    subsumptionPropertiesOf(PZ,PP,Schema). 
-subsumptionPropertiesOf(PC,PC,_).
+    subsumptionPropertiesOf(PZ,PP,Schema).
+subsumptionPropertiesOf(PC,owl:topObjectProperty,Schema) :-
+    objectProperty(PC,Schema).
+subsumptionPropertiesOf(PC,owl:topDataProperty,Schema) :-
+    datatypeProperty(PC,Schema).
 
+:- rdf_meta strictSubsumptionPropertiesOf(r,r,o).
 strictSubsumptionPropertiesOf(PC,PP,Schema) :-
     subPropertyOf(PC, PP, Schema).
 strictSubsumptionPropertiesOf(PC,PP,Schema) :-
     subPropertyOf(PC, PZ, Schema),
     subsumptionPropertiesOf(PZ,PP,Schema).
-
+strictSubsumptionPropertiesOf(PC,owl:topObjectProperty,Schema) :-
+    PC \= owl:topObjectProperty,
+    objectProperty(PC,Schema).
+strictSubsumptionPropertiesOf(PC,owl:topDataProperty,Schema) :-
+    PC \= owl:topDataProperty,
+    datatypeProperty(PC,Schema).
 
 orphanProperty(X,Y,Schema,Reason) :-
     subPropertyOf(X,Y,Schema),
@@ -519,9 +531,33 @@ propertyCycleSC(Schema,Reason) :- propertyCycle(_,_,Schema,Reason).
 :- rdf_meta range(r,r,o).
 range(P,R,Schema) :- xrdf(P,rdfs:range,R,Schema).
 
+:- rdf_meta anyRange(r,r,o).
+anyRange(owl:topObjectProperty,owl:'Thing',_).
+anyRange(owl:topDataProperty,rdfs:'Literal',_).
+anyRange(P,R,Schema) :-
+    range(P,R,Schema).
+anyRange(P,R,Schema) :-
+    strictSubsumptionPropertiesOf(P,P2,Schema),
+    anyRange(P2,R,Schema).
+
+:- rdf_meta mostSpecificRange(r,r,o).
+mostSpecificRange(P,R,Schema) :- anyRange(P,R,Schema), !.
+    
 :- rdf_meta domain(r,r,o).
 domain(P,D,Schema) :- xrdf(P,rdfs:domain,D,Schema).
-		
+
+:- rdf_meta anyDomain(r,r,o).
+anyDomain(owl:topObjectProperty,owl:'Thing',_).
+anyDomain(owl:topDataProperty,rdfs:'Literal',_).
+anyDomain(P,R,Schema) :-
+    domain(P,R,Schema).
+anyDomain(P,R,Schema) :-
+    strictSubsumptionPropertiesOf(P,P2,Schema),
+    anyDomain(P2,R,Schema).
+
+:- rdf_meta mostSpecificDomain(r,r,o).
+mostSpecificDomain(P,R,Schema) :- anyDomain(P,R,Schema), !.
+
 noImmediateDomainSC(Schema,Reason) :-
     property(P,Schema), \+ rdfsProperty(P),
     \+ domain(P,_,Schema),
