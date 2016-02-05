@@ -36,6 +36,7 @@
 		noImmediateDomainSC/2, noImmediateRangeSC/2,      % Best Practice
 		schemaBlankNodeSC/2, notUniqueClassLabelSC/2,       % Best Practice
 		notUniqueClassSC/2, notUniquePropertySC/2,        % Best Practice
+		annotationOverloadSC/3,
 		noImmediateClassSC/2,
 		
 		% OWL DL (Constraint)
