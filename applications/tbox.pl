@@ -36,8 +36,8 @@
 		noImmediateDomainSC/2, noImmediateRangeSC/2,      % Best Practice
 		schemaBlankNodeSC/2, notUniqueClassLabelSC/2,       % Best Practice
 		notUniqueClassSC/2, notUniquePropertySC/2,        % Best Practice
-		annotationOverloadSC/3,
 		noImmediateClassSC/2,
+		annotationOverloadSC/2,
 		
 		% OWL DL (Constraint)
 		orphanClassSC/2,              % OWL
@@ -598,7 +598,7 @@ propertyTypeOverloadSC(P,Schema,Reason) :-
 	    property=P,
 	    message=Message].
 
-annotationOverloadSC(P,Schema,Reason) :-
+annotationOverloadSC(Schema,Reason) :-
     (datatypeProperty(P,Schema) ; objectProperty(P,Schema) ; rdfProperty(P,Schema)),
     annotationProperty(P,Schema),
     interpolate([P,' is defined as a property and defined as an annotationProperty'], Message),
