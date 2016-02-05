@@ -37,7 +37,8 @@
 		schemaBlankNodeSC/2, notUniqueClassLabelSC/2,       % Best Practice
 		notUniqueClassSC/2, notUniquePropertySC/2,        % Best Practice
 		noImmediateClassSC/2,
-		annotationOverloadSC/2,
+		annotationOverloadSC/2, 
+		propertyTypeOverloadSC/2,
 		
 		% OWL DL (Constraint)
 		orphanClassSC/2,              % OWL
@@ -590,7 +591,7 @@ notUniqueProperty(P,Schema,Reason) :-
 	    property=P,
 	    message=Message].
 
-propertyTypeOverloadSC(P,Schema,Reason) :- 
+propertyTypeOverloadSC(Schema,Reason) :- 
     datatypeProperty(P,Schema), objectProperty(P,Schema),
     interpolate([P,' is an objectProperty and a datatypeProperty'], Message),
     Reason=['rdf:type'='PropertyTypeOverloadViolation',
