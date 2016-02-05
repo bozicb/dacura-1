@@ -3,6 +3,7 @@
 	   dacura_instance_update/1, 
 	   dacura_validate/1
 	  ]).
+:- use_module(library(pldoc)).
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_server_files)).
 :- use_module(library(http/html_write)).
@@ -32,7 +33,7 @@ http:location(dacura, '/dacura', []).
 :- http_handler(dacura(schema_validate), dacura_schema_validate, []).
 :- http_handler(dacura(test), dacura_test, []).
 :- http_handler(dacura(stub), dacura_stub, []).
-:- http_handler(dacura(entity), dacura_entity, []). 
+:- http_handler(dacura(entity), dacura_entity, []).
 
 :- use_module(library(http/json_convert)). 
 :- use_module(utils). 
@@ -227,6 +228,19 @@ dacura_entity(Request) :-
     allEntities(Schema,AllEntities),
     jsonify(AllEntities,JSON),
     json_write(Out,JSON).
+
+dacura_query(Request) :-
+    http_parameters(Request, [], [form_data(Data)]), 
+    
+    member(class=Class,Data),
+%    member(query=QUERYString,Data), 
+%    term_to_atom(QUERY,QUERYString),
+%    setof(W, QUERY, QResults),
+    member(schema=Schema, Data),
+    classFrame(Class,Frame,Schema),    
+    write(Frame).
+%    write(QResults).
+    
     
 /*
 graphs_instance_schema(_Request) :-

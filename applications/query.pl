@@ -1,3 +1,4 @@
+
 :- module(query, [classFrame/3,allEntities/2]).
 
 :- use_module(utils).
@@ -12,6 +13,10 @@
 	     
 % We should be creating stubs from the underlying graph
 % which means we need some way to query it.
+
+% It's quite possible all of these predicates should be replaced with a
+% specialisation of a single graph fold predicate. 
+
 
 /******************************************************
 
@@ -30,6 +35,7 @@ RESTSPEC = [and, REST1, ... RESTN] | [or, REST1, ... RESTN] | [disj, REST1, REST
 
 *******************************************************/
 
+% Type at which to "clip" graphs to form trees
 entity(Class,Schema) :-
     subsumptionOf(Class, 'http://dacura.cs.tcd.ie/data/seshat#Entity', Schema). 
 
@@ -199,6 +205,7 @@ intersectionFrame(Schema,[R|FrameA],FrameB,[R|FrameC]) :-
 intersectionFrames(Schema,[A|Frames],Frame) :-
     foldl(intersectionFrame(Schema),Frames,A,Frame).
 
+% Builds a frame from a class formula
 :- rdf_meta classFrame(+,t,t,t).
 traverseClassFormula(_,_,class('http://www.w3.org/2002/07/owl#Thing'),[type=thing]) :- !.
 traverseClassFormula(Schema,Properties,class(C),Frame) :-
@@ -232,6 +239,66 @@ traverseClassFormula(_,Properties,F,[type=failure, message="mangled frame",
     
 :- rdf_meta classFrame(r,o,t).
 classFrame(Class, Schema, Frame) :-
-    classFormula(Schema,Class,Formula) -> 
-	traverseClassFormula(Schema, [], Formula, Frame)
-    ; Frame = [].
+    % No reasons [] for it to be not well founded...
+    notWellFoundedFrame(Class, Schema, []) -> 
+	classFormula(Schema,Class,Formula) *-> 
+          traverseClassFormula(Schema, [], Formula, Frame)
+        ; Frame = ['No Class Formula!']
+    ; Frame = ['Not well founded!'].
+
+% This is a graph search using all possible property edges from classes.
+% the "wellFoundedFrameHelper" takes an assoc
+% * returns false if it finds a cycle
+% * stops if it finds an "entity" or dataTypeProperty
+%
+/* Positively defined.
+wellFoundedFrameHelper(Class,Schema,S1) :-
+    get_assoc(Class, S1, true) ->
+	fail
+    ; (classProperties(Class,Schema,Properties) -> 
+	   put_assoc(Class,S1,true,S2),
+	   exclude(lambda(Pe,query:datatypeProperty(Pe,Schema)), Properties, ObjectProperties),
+	   maplist(lambda(Pm,R,tbox:range(Pm,R,Schema)), ObjectProperties,Classes),
+	   exclude(lambda(CE,query:entity(CE,Schema)),Classes, Clipped),
+	   maplist(lambda(C, query:wellFoundedFrameHelper(C, Schema, S2)), Clipped)
+       ; true).
+
+:- rdf_meta wellFoundedFrame(r,o).
+wellFoundedFrame(Class,Schema) :-
+    empty_assoc(S), 
+    wellFoundedFrameHelper(Class, Schema, S). 
+*/
+
+% This is a graph search using all possible property edges from classes.
+% the "NotWellFoundedFrameHelper" takes an assoc list
+% * returns a "Reason" if it finds a cycle, including the trail between classes.
+% * stops if it finds an "entity" or dataTypeProperty
+notWellFoundedFrameHelper(Class,Schema,S1,Trail,Reasons) :-
+    get_assoc(Class, S1, true) ->
+	interpolate(['There is a cycle in the frame to a class ',Class,
+		     ' which is not an entity.'],
+		    Message),
+	reverse([Class|Trail],Cycle),
+	Reasons = [['rdf:type'='FrameCycle',
+		    bestPractice=literal(type('xsd:boolean', true)),
+		    message=Message,
+		    class=Class,
+		    cycle=Cycle]]
+    ; (classProperties(Class,Schema,Properties) -> 
+	   put_assoc(Class,S1,true,S2),
+	   exclude(lambda(Pe,query:datatypeProperty(Pe,Schema)), Properties, ObjectProperties),
+	   maplist(lambda(Pm,target(Pm,R),tbox:range(Pm,R,Schema)), ObjectProperties,TargetClasses),
+	   exclude(lambda(target(_,CE),query:entity(CE,Schema)), TargetClasses, Clipped),
+	   maplist(lambda(target(Px,C), Rs, query:notWellFoundedFrameHelper(C, Schema, S2, [Px, Class|Trail], Rs)), Clipped, ReasonsList),
+	   flatten(ReasonsList, Reasons)
+       ; Reasons = []).
+
+% notWellFoundedFrame checks to see if there are cycles in the graph without
+% dacura:Entity demarcations which "clip" the graph.
+% * THIS IS NOT A PREDICATE - it always succeeds with a list of reasons of failure
+%   or an empty list for success.
+
+:- rdf_meta notWellFoundedFrame(r,o,t).
+notWellFoundedFrame(Class,Schema,Reasons) :-
+    empty_assoc(S),
+    notWellFoundedFrameHelper(Class,Schema,S,[],Reasons). 

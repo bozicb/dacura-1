@@ -78,9 +78,9 @@ runDelta(Delta,Witnesses) :-
 failure_witness([],[]) :- !.
 failure_witness(DeleteFailures,DeleteWitness) :-
     convert_quads(JSONDeleteFailures,DeleteFailures),
-    DeleteWitness = [json([error=deleteFailures,
-			   deletes=JSONDeleteFailures,
-			   message="Failed to delete all triples"])].
+    DeleteWitness = [['rdf:type'='DeleteFailureViolation',
+		      deletes=JSONDeleteFailures,
+		      message="Failed to delete all triples"]].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Test running predicates
@@ -105,8 +105,8 @@ schemaTest(Pragma,Schema,Reason) :-
 runSchemaValidation(Pragma,Witnesses) :-
     getKey(schema, Pragma, Schema, 'schema'),
     % Only attempted schema test if the pre-test fails (Cycles!)
-    (setof(json(Reason), checker:preSchemaTest(Pragma, Schema, Reason), Witnesses), !
-     ; uniqueSolns(json(Reason), checker:schemaTest(Pragma, Schema, Reason), Witnesses)).
+    (setof(Reason, checker:preSchemaTest(Pragma, Schema, Reason), Witnesses), !
+     ; uniqueSolns(Reason, checker:schemaTest(Pragma, Schema, Reason), Witnesses)).
 
 
 instanceValidator(Delta,Pragma,Reason) :-
@@ -135,7 +135,7 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
     % first perform update.
     runDelta(Delta,DeleteFailures),
     failure_witness(DeleteFailures,DeleteWitness),
-    uniqueSolns(json(W), checker:instanceValidator(Delta,Pragma,W), ValidationWitnesses),
+    uniqueSolns(W, checker:instanceValidator(Delta,Pragma,W), ValidationWitnesses),
     append(ValidationWitnesses, DeleteWitness, Witnesses),
     getKey(instance, Pragma, Instance, 'instance'), 
     (member(commit=true,Pragma),
@@ -145,7 +145,7 @@ runInstanceUpdate(Delta, Pragma, Witnesses) :-
     ).
 
 runInstanceValidation(Delta,Pragma,Witnesses) :-
-    uniqueSolns(json(W), checker:instanceValidator(Delta,Pragma,W), Witnesses).
+    uniqueSolns(W, checker:instanceValidator(Delta,Pragma,W), Witnesses).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Instance / Schema Updates
@@ -190,6 +190,6 @@ runFullValidation(Pragma,Witnesses) :-
     runSchemaValidation(Pragma,SchemaWitnesses), 
     
     % schema updates can be empty and will check all, but instances can not!
-    uniqueSolns(json(W), checker:fullInstanceValidator(Pragma,W), InstanceWitnesses),
-    
+    uniqueSolns(W, checker:fullInstanceValidator(Pragma,W), InstanceWitnesses),
+	    
     append(SchemaWitnesses,InstanceWitnesses,Witnesses).

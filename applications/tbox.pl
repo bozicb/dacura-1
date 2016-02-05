@@ -1,5 +1,13 @@
+%% tbox
+%
+% This module deals with schema validation predicates as well as queries
+% for subsumption, domains, ranges, classes etc.
+%
+% @author Gavin Mendel-Gleason
+% @license GPL
+
 :- module(tbox,[
-	        %%% TBox predicates
+	        % TBox predicates
 	        class/2, restriction/2, classOrRestriction/2,
 		subClassOf/3, unionOf/3, intersectionOf/3, subClassStrict/3,
 		disjointUnionOf/3, 
@@ -17,8 +25,8 @@
 		customDatatype/2, datatype/2,
 		strictSubsumptionPropertiesOf/3,
 		
-		%%% SC == Schema Constraints
-		%%% constraints must be pred/2
+		% SC == Schema Constraints
+		% constraints must be pred/2
 
 		% REQUIRED Best Practice 
 		classCycleSC/2,               % Best Practice
@@ -44,41 +52,71 @@
 :- use_module(datatypes).
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% OWL DL Syntactic correctness
-%%
-%% It would be useful to do a complete check on the syntactic
-%% correctness of our ontology according to the OWL 2 / RDF mapping
+/*
+OWL DL Syntactic correctness
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Classes 
+It would be useful to do a complete check on the syntactic
+correctness of our ontology according to the OWL 2 / RDF mapping
+*/
 
+/* 
+Classes 
+*/
+
+%% immediateClass(?X:Atom, +Schema:Atom) is nondet
+% immediateClass(+X:Atom, +Schema:Atom) is det
+%
 % Check to see if class definitions are immediate (best practices).
+% 
+% @param X URI identifier for which to check if the schema has recorded a 
+%        a non-inferred rfds or owl Class.
+% @param Schema Atom idntifying the current schema graph.
 :- rdf_meta immediateClass(r,o).
 immediateClass(X,Schema) :- xrdf(X, rdf:type, rdfs:'Class', Schema).
 immediateClass(X,Schema) :- xrdf(X, rdf:type, owl:'Class', Schema).
 immediateClass(owl:'Thing',_).
 immediateClass(owl:'Nothing',_).
 
+%% class(?X:Atom, +Schema:Atom) is nondet
+% class(+X:Atom, +Schema:Atom) is det
+%
 % All class designations - with inferences.
+% 
+% @param X URI identifier for which to check if the schema has recorded a 
+%        an inferred rfds or owl Class.
+% @param Schema Atom idntifying the current schema graph.
 :- rdf_meta class(r,o).
 class(X,Schema) :- immediateClass(X,Schema). 
 class(X,Schema) :- subClassOf(X,Y,Schema), class(Y,Schema).
 class(X,Schema) :- equivalentClass(X,Y,Schema), class(Y,Schema).
 
+%% restriction(+R:Atom, +Schema:Atom) is nondet
+%
+% All restriction designations - with inferences.
+% 
+% @param R URI identifier for which to check if the schema has recorded a 
+%        an inferred owl Restriction.
+% @param Schema Atom idntifying the current schema graph.
 :- rdf_meta restriction(r,o).
 restriction(R,Schema) :- xrdf(R, rdf:type, owl:'Restriction', Schema).
 restriction(R,Schema) :- subClassOf(R,R2,Schema), restriction(R2,Schema).
 restriction(R,Schema) :- equivalentClass(R,R2,Schema), restriction(R2,Schema).
 
-% A class is used without a class definition.
+%% noImmediateClassSC(+Schema:Atom, -Reason:Term) is nondet
+%
+% Check to see if a class is used without a class definition.
+% 
+% @param Schema Atom idntifying the current schema graph.
+% @param Reason A prolog representation of a JSON Linked Data structure 
+%               detailing the violation.
 noImmediateClassSC(Schema, Reason) :-
     xrdf(P,rdf:type,owl:'ObjectProperty',Schema),
     domain(P,X,Schema),
     \+ immediateClass(X,Schema), \+ restriction(X,Schema),
     interpolate([X,' is used as a domain for property ',P,' but is not defined'], Message),
-    Reason = [error=notDomainClass,
+    Reason = ['rdf:type'='NoImmediateClassViolation',  
 	      message=Message,
+	      bestPractice=literal(type('xsd:boolean',true)),
 	      class=X,
 	      property=P].
 noImmediateClassSC(Schema, Reason) :-
@@ -86,7 +124,8 @@ noImmediateClassSC(Schema, Reason) :-
     range(P,X,Schema),
     \+ immediateClass(X,Schema), \+ restriction(X,Schema),
     interpolate([X,' is used as a domain for property ',P,' but is not defined'], Message),
-    Reason = [error=notDomainClass,
+    Reason = ['rdf:type'='NoImmediateClassViolation',
+	      bestPractice=literal(type('xsd:boolean',true)),
 	      message=Message,
 	      class=X,
 	      property=P].
@@ -94,7 +133,8 @@ noImmediateClassSC(Schema, Reason) :-
     subClassOf(X,Y,Schema),
     \+ customDatatype(X,Schema), \+ immediateClass(X,Schema), \+ restriction(X,Schema),
     interpolate(['The class ',Y,' is not a superclass of a defined class ',X], Message),
-    Reason = [error=notSuperClassOfClass,
+    Reason = ['rdf:type'='NoImmediateClassViolation',
+	      bestPractice=literal(type('xsd:boolean',true)),		      
 	      message=Message,
 	      child=X,
 	      parent=Y].
@@ -102,7 +142,8 @@ noImmediateClassSC(Schema, Reason) :-
     subClassOf(X,Y,Schema), 
     \+ customDatatype(Y,Schema), \+ immediateClass(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a subclass of a defined class ',Y], Message),
-    Reason = [error=notSubClassOfClass,
+    Reason = ['rdf:type'='NoImmediateClassViolation',
+	      bestPractice=literal(type('xsd:boolean',true)),
 	      message=Message,
 	      child=X,
 	      parent=Y].
@@ -110,7 +151,8 @@ noImmediateClassSC(Schema, Reason) :-
     intersectionOf(X,Y,Schema),
     \+ immediateClass(X,Schema), \+ restriction(X,Schema),
     interpolate(['The class ',X,' is an intersection of ', Y,' but not a defined class'], Message),
-    Reason = [error=notIntersectionOfClass,
+    Reason = ['rdf:type'='NoImmediateClassViolation',
+	      bestPractice=literal(type('xsd:boolean',true)),
 	      message=Message,
 	      child=X,
 	      parent=Y].
@@ -118,7 +160,8 @@ noImmediateClassSC(Schema, Reason) :-
     intersectionOf(X,Y,Schema),
     \+ immediateClass(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not an intersection of a defined class ',Y], Message),
-    Reason = [error=notIntersectionOfClass,
+    Reason = ['rdf:type'='NoImmediateClassViolation',
+	      bestPractice=literal(type('xsd:boolean',true)),	      
 	      message=Message,
 	      child=X,
 	      parent=Y].
@@ -126,7 +169,8 @@ noImmediateClassSC(Schema, Reason) :-
     unionOf(X,Y,Schema),
     \+ immediateClass(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a union of a defined class ',Y], Message),
-    Reason = [error=notUnionOfClass,
+    Reason = ['rdf:type'='NoImmediateClassViolation',
+	      bestPractice=literal(type('xsd:boolean',true)),
 	      message=Message,
 	      child=X,
 	      parent=Y].
@@ -134,32 +178,58 @@ noImmediateClassSC(Schema, Reason) :-
     unionOf(X,Y,Schema),
     \+ immediateClass(X,Schema), \+ restriction(X,Schema),
     interpolate(['The class ',X,' is a union of ', Y,' but not a defined class'], Message),
-    Reason = [error=notUnionOfClass,
+    Reason = ['rdf:type'='NoImmediateClassViolation',
+	      bestPractice=literal(type('xsd:boolean',true)),
 	      message=Message,
 	      child=X,
 	      parent=Y].
 
+%% restrctionOnProperty(?CR:Atom, ?P:Atom, +Schema:Atom) is nondet
+%
+% Defines the relation between properties and their restrictions.
+%
+% @param CR A restriction class specified as a URI
+% @param P A property specified as a URI
+% @param Schema The current schema graph 
 restrictionOnProperty(CR,P,Schema) :- xrdf(CR,owl:onProperty,P,Schema), restriction(CR,Schema).
 
+%% classOrRestriction(?X:Atom, +Schema:Atom) is nondet
+%
+% All URIs which are either a class or restriction.
+%
+% @param X A class or restriction class specified as a URI
+% @param Schema The current schema graph 
 classOrRestriction(X,Schema) :- class(X,Schema).
 classOrRestriction(X,Schema) :- restriction(X,Schema).
 
-% Uniqueness constraint on classes
+%% notUniqueClass(+Y:Atom, +Schema:Atom, -Reason:Term) is nondet
+%
+% Is a class multiply defined?
+%
+% @param Y A class specified as a URI
+% @param Schema The current schema graph
 notUniqueClass(Y, Schema, Reason) :-
     classOrRestriction(Y, Schema), setof(X, classOrRestriction(X,Schema), L),
     \+ count(Y,L,1),
     interpolate(['The class or restriction ',Y,
 		 ' is not a unique. Some existing class has this identifier']
 		,Message),
-    Reason = [error=notUniqueClass,
+    Reason = ['rdf:type'='NotUniqueClassNameViolation',
+	      bestPractice=literal(type('xsd:boolean',true)),
 	      message=Message,
 	      class=Y].
-
 notUniqueClassSC(Schema,Reason) :- notUniqueClass(_,Schema,Reason).
 
-% Collect the RDF list into a prolog list
+
+%% collect(+X:Atom, -L:Term, -Graph:Atom) is nondet
+%
+% Collect the RDF list into a prolog list.
 % It may be better to treat lists programmatically through rdf rather than
 % collect them, using a derived predicate like rdfListMembership
+%
+% @param X The URI of an RDF list
+% @param L Term
+% @param Graph The current graph
 :- rdf_meta collect(r,t,o).
 collect(rdf:nil,[],_).
 collect(X,[H|T],Graph) :-
@@ -167,49 +237,110 @@ collect(X,[H|T],Graph) :-
     xrdf(X,rdf:rest,Y,Graph),
     collect(Y,T,Graph).
 
-% One step subclassing
+%% subClassOf(?Child:Atom,?Parent:Atom,+Schema:Atom) is nondet
+%
+% One step subclassing (only gives the immediate child-parent class relationship)
+%
+% @param Child Child class URI
+% @param Parent Parent class URI.
 :- rdf_meta subClassOf(r,r,o).
 subClassOf(Child,Parent,Schema) :- xrdf(Child, rdfs:subClassOf, Parent, Schema).
 
+%% unionOf(?Super:Atom,?Sub:Atom,+Schema:Atom) is nondet
+%
+% Gives URI solutions for which the Super URI is determined to be a union of.
+%
+% @param Super The class URI which is the union of other classes.
+% @param Sub The class URI which is unioned to form the Super class.
+% @param Schema The current schema graph
 :- rdf_meta unionOf(r,r,o).
 unionOf(C,U,Schema) :-
     xrdf(C,owl:unionOf,ListObj, Schema),
     collect(ListObj,L,Schema),
     member(U,L).
 
+%% unionOfList(+Super:Atom,-Sub:URIList,+Schema:Atom) is det
+%
+% Gives a list of URIs which are solutions for which the Super URI is determined to be a union of.
+%
+% @param Super The class URI which is the union of other classes.
+% @param Sub The class URI which is unioned to form the Super class.
+% @param Schema The current schema graph
 :- rdf_meta unionOfList(r,r,o).
 unionOfList(C,UList,Schema) :- 
     xrdf(C,owl:unionOf,ListObj, Schema),
-    collect(ListObj,UList,Schema).
+    collect(ListObj,UList,Schema), !.
 
+%% disjointUnionOf(?Super:Atom,?Sub:Atom,+Schema:Atom) is nondet
+%
+% Gives URI solutions for which the Super URI is determined to be a union of.
+%
+% @param Super The class URI which is the disjoint union of other classes.
+% @param Sub A class URI which is disjointly unioned to form the Super class.
+% @param Schema The current schema graph
 :- rdf_meta disjointUnionOf(r,r,o).
 disjointUnionOf(C,U,Schema) :-
     xrdf(C,owl:disjointUnionOf,ListObj, Schema),
     collect(ListObj,L,Schema),
     member(U,L).
 
+%% disjointUnionOfList(+Super:Atom,-SubList:URIList,+Schema:Atom) is det
+%
+% Gives URI solutions as a list for which the Super URI is determined to be a djsoint union of.
+%
+% @param Super The class URI which is the disjoint union of other classes.
+% @param SubList The prolog list of class URIs which are disjointly unioned to form the Super class.
+% @param Schema The current schema graph.
 :- rdf_meta disjointUnionOfList(r,r,o).
 disjointUnionOfList(C,UList,Schema) :- 
     xrdf(C,owl:disjointUnionOf,ListObj, Schema),
-    collect(ListObj,UList,Schema).
+    collect(ListObj,UList,Schema), !.
 
+%% intersectionOf(?Inter:Atom,?Class:Atom,+Schema:Atom) is nondet
+%
+% Gives URI solutions for which the Super URI is determined to be an intersection.
+%
+% @param Inter The class URI which is the intersection of the Class URI.
+% @param Class A class URI of which Inter is an intersection.
+% @param Schema The current schema graph
 :- rdf_meta intersectionOf(r,r,o).
 intersectionOf(C,I,Schema) :-
     xrdf(C,owl:intersectionOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     member(I,L).
 
+%% disjointUnionOfList(+Inter:Atom,-Classes:URIList,+Schema:Atom) is det
+%
+% Gives URI solutions as a list for which the Super URI is determined to be an intersection.
+%
+% @param Inter The class URI which is the disjoint union of other classes.
+% @param Classes The prolog list of class URIs which are intersected.
+% @param Schema The current schema graph.
 :- rdf_meta intersectionOfList(r,r,o).
 intersectionOfList(C,IList,Schema) :- 
     xrdf(C,owl:intersectionOf,ListObj, Schema),
-    collect(ListObj,IList,Schema).
+    collect(ListObj,IList,Schema), !.
 
+%% oneOf(?CC:Atom,?X:Atom,+Schema:Atom) is det
+%
+% Gives elements which are members of a class by enumeration.
+%
+% @param CC The class URI of which X is a member.
+% @param X The URI of the element which is a member of CC.
+% @param Schema The current schema graph.
 :- rdf_meta oneOf(r,r,o).
 oneOf(CC,X,Schema) :-
     xrdf(CC,owl:oneOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     member(X,L).
 
+%% oneOfList(+CC:Atom,-OneList:URIList,+Schema:Atom) is det
+%
+% Gives a prolog list of elements associated with an enumerated class.
+%
+% @param CC The class URI of which X is a member.
+% @param OneList The URI list of elements which are members of CC.
+% @param Schema The current schema graph.
 :- rdf_meta oneOfList(r,r,o).
 oneOfList(C,OneList,Schema) :- 
     xrdf(C,owl:oneOf,ListObj, Schema),
@@ -343,7 +474,8 @@ orphanClassSC(Schema, Reason) :-
     subClassOf(X,Y,Schema),
     \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a subclass of a valid class ',Y], Message),
-    Reason = [error=notSubClassOfClass,
+    Reason = ['rdf:type'='NotSubClassofClassViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),	      
 	      message=Message,
 	      child=X,
 	      parent=Y].
@@ -351,7 +483,8 @@ orphanClassSC(Schema, Reason) :-
     intersectionOf(X,Y,Schema),
     \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X, ' is not an intersection of a valid class ',Y], Message),
-    Reason = [error=notIntersectionOfClass,
+    Reason = ['rdf:type'='NotIntersectionOfClassViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),	      	      
 	      message=Message,
 	      child=X,
 	      parent=Y].
@@ -359,7 +492,8 @@ orphanClassSC(Schema, Reason) :-
     unionOf(X,Y,Schema),
     \+ class(Y,Schema), \+ restriction(Y,Schema),
     interpolate(['The class ',X,' is not a union of a valid class ',Y], Message),
-    Reason = [error=notUnionOfClass,
+    Reason = ['rdf:type'='NotUnionOfClassViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message=Message,
 	      child=X,
 	      parent=Y].
@@ -392,7 +526,8 @@ classCycleHelp(C,S,[K|P],Schema) :-
 classCycle(C,P,Schema,Reason) :-
     empty_assoc(S), classCycleHelp(C,S,P,Schema),
     interpolate(['Class, ',C,' has a class cycle with path: ', P], Message),
-    Reason = [error=classCycle,
+    Reason = ['rdf:type'='ClassCycleViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message=Message,
 	      class=C,
 	      path=P].
@@ -449,14 +584,16 @@ notUniqueProperty(P,Schema,Reason) :-
     \+ count(P,L,1),
     interpolate([P,' is not a unique property name, some property with this name already exists'],
 		Message),
-    Reason=[error=notUniqueProperty,
+    Reason=['rdf:type'='NotUniquePropertyNameViolation',
+	    bestPractice=literal(type('xsd:boolean',true)),
 	    property=P,
 	    message=Message].
 
 propertyTypeOverloadSC(P,Schema,Reason) :- 
     datatypeProperty(P,Schema), objectProperty(P,Schema),
     interpolate([P,' is an objectProperty and a datatypeProperty'], Message),
-    Reason=[error=propertyTypeOverload,
+    Reason=['rdf:type'='PropertyTypeOverloadViolation',
+	    bestPractice=literal(type('xsd:boolean',false)),
 	    property=P,
 	    message=Message].
 
@@ -464,7 +601,8 @@ annotationOverloadSC(P,Schema,Reason) :-
     (datatypeProperty(P,Schema) ; objectProperty(P,Schema) ; rdfProperty(P,Schema)),
     annotationProperty(P,Schema),
     interpolate([P,' is defined as a property and defined as an annotationProperty'], Message),
-    Reason=[error=annotationOverloadSC,
+    Reason=['rdf:type'='annotationOverloadViolation',
+	    bestPractice=literal(type('xsd:boolean',true)),
 	    property=P,
 	    message=Message].
     
@@ -503,7 +641,8 @@ orphanProperty(X,Y,Schema,Reason) :-
     subPropertyOf(X,Y,Schema),
     \+ property(Y,Schema), \+ annotationProperty(Y,Schema),
     interpolate([X,' is not a sub-property of a valid property ', Y], Message),
-    Reason=[error=notSubPropertyOfProperty,
+    Reason=['rdf:type'='OrphanPropertyViolation',
+	    bestPractice=literal(type('xsd:boolean',false)),
 	    child=X,
 	    parent=Y,
 	    message=Message].
@@ -521,7 +660,8 @@ propertyCycleHelp(P,S,[Q|T],Schema) :-
 propertyCycle(P,PC,Schema,Reason) :-
     empty_assoc(S), propertyCycleHelp(P,S,PC,Schema),
     interpolate(['Property class ', P, ' has a cycle with path: ', PC], Message),
-    Reason=[error=propertyClassCycle,
+    Reason=['rdf:type'='PropertyClassCycleViolation',
+	    bestPractice=literal(type('xsd:boolean',false)),
 	    property=P,
 	    path=PC,
 	    message=Message].
@@ -566,7 +706,7 @@ noImmediateDomainSC(Schema,Reason) :-
      ; objectProperty(P,Schema) -> M='Object property '
      ; rdfProperty(P,Schema) -> M='Rdf Property'),
     interpolate([M, P, ' has no specified domain.'], Message),
-    Reason = [error=noImmediateDomain,
+    Reason = ['rdf:type'=noImmediateDomain,
 	      property=P,
 	      message = Message].
 
@@ -587,7 +727,8 @@ invalidDomainSC(Schema,Reason) :-
     domain(P,D,Schema),
     \+ class(D,Schema),
     interpolate(['The property ', P,' has an undefined domain.'],Message),
-    Reason=[error=invalidDomain,
+    Reason=['rdf:type'='InvalidDomainViolation',
+	    bestPractice=literal('xsd:boolean',false),
 	    message=Message,
 	    property=P,
 	    domain=D].
@@ -597,7 +738,8 @@ invalidRangeSC(Schema,Reason) :-
     range(P,R,Schema),
     \+ datatype(R,Schema), \+ rdfProperty(P,Schema),
     interpolate(['DataProperty Range ', R, ' is not a valid (or implemented) datatype for property ', P,'.'], Message),
-    Reason=[error=invalidRange,
+    Reason=['rdf:type'='InvalidRangeViolation',
+	    bestPractice=literal('xsd:boolean',false),
 	    message=Message,
 	    property=P,
 	    range=R].
@@ -606,7 +748,8 @@ invalidRangeSC(Schema,Reason) :-
     range(P,R,Schema),
     \+ class(R,Schema), \+ rdfProperty(P,Schema),
     interpolate(['ObjectProperty Range ',R,' is not a valid range for property ',P,'.'],Message),
-    Reason=[error=invalidRange,
+    Reason=['rdf:type'='InvalidRangeViolation',
+	    bestPractice=literal('xsd:boolean',false),
 	    message=Message,
 	    property=P,
 	    range=R].
@@ -615,7 +758,8 @@ invalidRangeSC(Schema,Reason) :-
     range(P,R,Schema),
     \+ class(R,Schema), \+ baseType(R),
     interpolate(['rdf:Property range ',R,' is not a valid range for property ',P,'.'],Message),
-    Reason=[error=invalidRange,
+    Reason=['rdf:type'='InvalidRangeViolation',
+	    bestPractice=literal('xsd:boolean',false),
 	    message=Message,
 	    property=P,
 	    range=R].
@@ -635,7 +779,8 @@ domainNotSubsumedSC(Schema,Reason) :-
     \+ subsumptionOf(D, D2, Schema),
     interpolate(['Invalid domain on property ', P,
 		 ', due to failure of domain subsumption.'], Message),
-    Reason = [error=domainNotSubsumed,
+    Reason = ['rdf:type'='DomainNotSubsumedViolation',
+	      bestPractice=literal('xsd:boolean',false),
 	      message=Message,
 	      property=P,
 	      parentProperty=P2,
@@ -649,7 +794,8 @@ rangeNotSubsumedSC(Schema,Reason) :-
     \+ subsumptionOf(R, R2, Schema), 
     interpolate(['Invalid range on property ', P,
 		 ', due to failure of range subsumption.'], Message),
-    Reason = [error=rangeNotSubsumed,
+    Reason = ['rdf:type'='RangeNotSubsumedViolation',
+	      bestPractice=literal('xsd:boolean',false),
 	      message=Message,
 	      property=P,
 	      parentProperty=P2,
@@ -663,19 +809,22 @@ schemaObjectBlankNode(Z,Schema) :- xrdf(_,_,Z,Schema), rdf_is_bnode(Z).
 schemaBlankNodeSC(Schema,Reason) :-
     schemaSubjectBlankNode(X,Schema),
     interpolate(['The subject ', X, ' is a blank node'],Message),
-    Reason=[error=instanceBlankNode,
+    Reason=['rdf:type'='SchemaBlankNodeViolation',
+	    bestPractice=literal('xsd:boolean',true),
 	    message=Message,
 	    subject=X].
 schemaBlankNodeSC(Schema,Reason) :-
     schemaPredicateBlankNode(X,Schema),
     interpolate(['The predicate ', X, ' is a blank node'],Message),
-    Reason=[error=instanceBlankNode,
+    Reason=['rdf:type'='SchemaBlankNodeViolation',
+	    bestPractice=literal('xsd:boolean',true),
 	    message=Message,
 	    predicate=X].
 schemaBlankNodeSC(Schema,Reason) :-
     schemaObjectBlankNode(X,Schema),
     interpolate(['The object ', X, ' is a blank node'],Message),
-    Reason=[error=instanceBlankNode,
+    Reason=['rdf:type'='SchemaBlankNodeViolation',
+	    bestPractice=literal('xsd:boolean',true),
 	    message=Message,
 	    object=X].
 
@@ -692,7 +841,8 @@ classHasOneLabel(X,Schema) :-
 notUniqueClassLabel(X,Schema,Reason) :- 
     \+ classHasOneLabel(X,Schema),
     interpolate(['Class ', X,' does not have exactly one lable.'], Message),
-    Reason = [error=duplicateLabelClass, 
+    Reason = ['rdf:type'='NotUniqueClassLabelViolation',
+	      bestPractice=literal('xsd:boolean',true),	    
 	      class=X,
 	      message=Message].
 

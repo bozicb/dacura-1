@@ -5,6 +5,8 @@
 :- use_module(library(semweb/turtle)). 
 :- use_module(utils).
 :- use_module(checker).
+:- use_module(library(http/json)). 
+:- use_module(library(http/json_convert)). 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Test harness.
@@ -54,7 +56,7 @@ runTests(Witnesses) :-
 
 runTest(Fail) :- 
     tests(Pragma, ExpectedWitnesses),
-    nl,write(Pragma),nl,
+    nl,writeq(Pragma),nl,
     member(schema=Schema, Pragma),
     member(instance=Instance, Pragma),
     member(tests=Tests, Pragma),
@@ -64,9 +66,11 @@ runTest(Fail) :-
     (ExpectedWitnesses = Witnesses
      *-> Fail = []
      ; Fail = [witnesses=Witnesses, expected=ExpectedWitnesses,test=Tests],
-       nl,write(Fail),nl,
-       nl,write(Tests),nl,
-       nl,write_canonical(Witnesses),nl),
+       %nl,current_output(Out), jsonify(Witnesses,JSON), json_write(Out, JSON),nl,
+       nl,writeq(Witnesses),nl,
+       nl,writeq(Fail),nl,
+       nl,writeq(Tests),nl,
+       nl,writeq(Witnesses),nl),
     unloadDB(Instance,Schema). 
     
 loadDB(Instance,Schema) :- 

@@ -1,3 +1,10 @@
+%% <module> Instance level data predicates
+%
+% This module deals with instance level validity and inference.
+% 
+% @author Gavin Mendel-Gleason
+% @license GPL
+
 :- module(abox,[
 		%% Predicates
 	        instanceClass/3,
@@ -26,7 +33,12 @@
 :- use_module(library(uri)).
 :- use_module(tbox).
 
-% X is invalid at C for Reason
+%% invalid(+X:Atom,+CC:Atom,+Instance:Atom,+Schema:Atom,-Reason:Term) is nondet
+%
+% invalid takes an object URI specified by X, and a class specified by CC, 
+% combined with instance and schema graph designators and Reason is bound to the 
+% witness of failure.
+%
 :- rdf_meta invalid(r,r,o,o,t).
 invalid(X,CC,Instance,Schema,Reason) :-
     subClassOf(CC,CZ,Schema),
@@ -35,7 +47,8 @@ invalid(X,CC,_,Schema,Reason) :-
     xrdf(CC,rdfs:oneOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     \+ member(X,L),
-    Reason = [error=objectInvalidAtClass,
+    Reason = ['rdf:type'='ObjectInvalidAtClassViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),	    
 	      message='Not an element of enumeration (oneOf)',
 	      element=X,
 	      class=CC].
@@ -49,7 +62,8 @@ invalid(X,CC,Instance,Schema,Reason) :-
     collect(ListObj,L,Schema),
     findall(C, (member(C,L), \+ invalid(X,C,Instance,Schema,_)), Solutions), 
     length(Solutions, N), N \= 1,
-    Reason = [error=objectInvalidAtClass,
+    Reason = ['rdf:type'='ObjectInvalidAtClassViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),	    
 	      message='More than one branch of disjointUnion is valid.',
 	      element=X,
 	      class=CC].
@@ -58,14 +72,16 @@ invalid(X,CC,Instance,Schema,Reason) :-
     collect(ListObj,L,Schema),
     forall(member(C,L),
 	   invalid(X,C,Instance,Schema,_)),
-    Reason = [error=objectInvalidAtClass,
+    Reason = ['rdf:type'='ObjectInvalidAtClassViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Element is not valid at any class of union',
 	      element=X,
 	      class=CC].
 invalid(X,CC,Instance,Schema, Reason) :-
     xrdf(CC,owl:complementOf,CN,Schema),
     \+ invalid(X,CN,Instance,Schema,_),
-    Reason = [error=objectInvalidAtClass,
+    Reason = ['rdf:type'='ObjectInvalidAtClassViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Complement is valid',
 	      element=X,
 	      class=CC].
@@ -124,7 +140,8 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:someValuesFrom,C,Schema),
     forall(inferredEdge(X,OP,Y,Instance,Schema),
            (\+ nelt(Y,C,Instance,Schema,_))),
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='No values from restriction class',
 	      element=X,
 	      class=CR].
@@ -133,51 +150,56 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:allValuesFrom,C,Schema),
     inferredEdge(X,OP,Y,Instance,Schema),
     nelt(Y,C,Instance,Schema,_),
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Some values not from restriction class',
 	      element=X,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:onProperty,OP,Schema),
-    xrdf(CR,owl:minCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:minCardinality,literal(type(type(xsd:nonNegativeInteger, CardStr))),Schema),
     atom_number(CardStr,N),
     card(X,OP,_,Instance,Schema,M),
     M < N, atom_number(A,M),
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Cardinality too small on restriction class',
 	      element=X,
 	      cardinality=A,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:onProperty,OP,Schema),
-    xrdf(CR,owl:maxCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:maxCardinality,literal(type(type(xsd:nonNegativeInteger, CardStr))),Schema),
     atom_number(CardStr,N),
     card(X,OP,_,Instance,Schema,M),
     N < M, atom_number(A,M),
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Cardinality too large on restriction class',
 	      element=X,
 	      cardinality=A,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:onProperty,OP,Schema),
-    xrdf(CR,owl:cardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:cardinality,literal(type(type(xsd:nonNegativeInteger, CardStr))),Schema),
     atom_number(CardStr,N),
     card(X,OP,_,Instance,Schema,M),
     N \= M, atom_number(A,M),
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Cardinality unequal on restriction class',
 	      element=X,
 	      cardinality=A,
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:onProperty,OP,Schema),
-    xrdf(CR,owl:minQualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:minQualifiedCardinality,literal(type(type(xsd:nonNegativeInteger, CardStr))),Schema),
     xrdf(CR,owl:onClass,C,Schema),
     atom_number(CardStr,N),
     qualifiedCard(X,OP,_,C,Instance,Schema,M),
     M < N, atom_number(A,M),
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Qualified Cardinality too small on restriction class',
 	      element=X,
 	      cardinality=A,
@@ -185,12 +207,13 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:onProperty,OP,Schema),
-    xrdf(CR,owl:maxQualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:maxQualifiedCardinality,literal(type(type(xsd:nonNegativeInteger, CardStr))),Schema),
     xrdf(CR,owl:onClass,C,Schema),
     atom_number(CardStr,N),
     qualifiedCard(X,OP,_,C,Instance,Schema,M),
     N < M, atom_number(A,M),
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Qualified Cardinality too large on restriction class',
 	      element=X,
 	      cardinality=A,
@@ -198,12 +221,13 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
 	      class=CR].
 neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:onProperty,OP,Schema),
-    xrdf(CR,owl:qualifiedCardinality,literal(type(xsd:nonNegativeInteger, CardStr)),Schema),
+    xrdf(CR,owl:qualifiedCardinality,literal(type(type(xsd:nonNegativeInteger, CardStr))),Schema),
     xrdf(CR,owl:onClass,C,Schema),
     atom_number(CardStr,N),
     qualifiedCard(X,OP,_,C,Instance,Schema,N),
     N \= M, atom_number(A,M),
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Qualified Cardinality unequal on restriction class',
 	      element=X,
 	      cardinality=A,
@@ -214,7 +238,8 @@ neltRestriction(X,CR,Instance,Schema,Reason) :-
     xrdf(CR,owl:hasValue,V,Schema),
     inferredEdge(X,OP,Y,Instance,Schema),
     Y \= V, 
-    Reason = [error=notRestrictionElement,
+    Reason = ['rdf:type'='NotRestrictionElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='hasValue constraint violated',
 	      element=X,
 	      value=V,
@@ -237,7 +262,8 @@ nelt(X,CP,_,Schema,Reason) :-
     xrdf(CP,rdfs:oneOf,ListObj,Schema),
     collect(ListObj,L,Schema),
     \+ member(X,L),
-    Reason = [error=dataInvalidAtDatatype,
+    Reason = ['rdf:type'='DataInvalidAtDatatypeViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Not an element of enumeration (oneOf)',
 	      element=X,
 	      datatype=CP].
@@ -247,7 +273,8 @@ nelt(X,CP,_,Schema,Reason) :-
     collect(ListObj,L,Schema),
     member(C,L),
     nbasetypeElt(X,C,Reason),
-    Reason = [error=dataInvalidAtDatatype,
+    Reason = ['rdf:type'='DataInvalidAtDatatypeViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Not an element of intersection',
 	      element=X,
 	      datatype=CP].
@@ -257,15 +284,17 @@ nelt(X,CP,_,Schema,Reason) :-
     collect(ListObj,L,Schema),
     forall(member(C,L),
 	   nbasetypeElt(X,C,_)),
-    Reason = [error=dataInvalidAtDatatype,
+    Reason = ['rdf:type'='DataInvalidAtDatatypeViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Not an element of union',
 	      element=X,
 	      class=CP].
 nelt(X,CC,_,Schema,Reason) :-
     rdf_is_literal(X),
     \+ customDatatype(CC,Schema), \+ baseType(CC),
-    Reason = [error=dataInvalidAtDatatype,
-	      message='Literal can not be an object',
+    Reason = ['rdf:type'='DataInvalidAtDatatypeViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
+	      message='Literal type can not be an object',
 	      element=X,
 	      class=CC].
 
@@ -281,7 +310,8 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     xrdf(X,P,Y,Instance), % Added
     \+ instanceClass(X, _, Instance),
     \+ instanceClass(X,_,Schema),
-    Reason=[error=edgeOrphanInstance,
+    Reason=['rdf:type'='EdgeOrphanInstanceViolation',
+	    bestPractice=literal(type('xsd:boolean',false)),
 	    message='Instance has no class',
 	    subject=X,
 	    predicate=P,
@@ -289,7 +319,8 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
 edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     xrdf(X,P,Y,Instance), % Added
     orphanInstance(X,C,Instance,Schema),
-    Reason=[error=edgeOrphanInstance,
+    Reason=['rdf:type'='EdgeOrphanInstanceViolation',
+	    bestPractice=literal(type('xsd:boolean',false)),
 	    message='Instance domain class is not valid',
 	    subject=X,
 	    predicate=P,
@@ -300,7 +331,8 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     xrdf(X,P,Y,Instance), % Added
     \+ instanceClass(Y, _, Instance),
     \+ instanceClass(Y,_,Schema),
-    Reason=[error=edgeOrphanInstance,
+    Reason=['rdf:type'='EdgeOrphanInstanceViolation',
+	    bestPractice=literal(type('xsd:boolean',false)),
 	    message='Instance has no class',
 	    subject=X,
 	    predicate=P,
@@ -309,7 +341,8 @@ edgeOrphanInstanceIC(X,P,Y,Instance,Schema,Reason) :-
     objectProperty(P,Schema),
     xrdf(X,P,Y,Instance), % Added
     orphanInstance(Y,C,Instance,Schema),
-    Reason=[error=edgeOrphanInstance,
+    Reason=['rdf:type'='EdgeOrphanInstanceViolation',
+	    bestPractice=literal(type('xsd:boolean',false)),
 	    message='Instance has no class',
 	    subject=X,
 	    predicate=P,
@@ -323,7 +356,8 @@ noPropertyDomainIC(X,P,Y,Instance,Schema,Reason) :-
     xrdf(X,P,Y,Instance), % Added
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ domain(SuperP,_,Schema),
-    Reason = [error=noPropertyDomain,
+    Reason = ['rdf:type'='NoPropertyDomainViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Property has no well defined domain.',
 	      subject=X,
 	      predicate=SuperP,
@@ -334,7 +368,8 @@ noPropertyRangeIC(X,P,Y,Instance,Schema,Reason) :-
     xrdf(X,P,Y,Instance), % Added
     subsumptionPropertiesOf(P,SuperP,Schema),
     \+ range(SuperP,_,Schema),
-    Reason = [error=invalidEdge,
+    Reason = ['rdf:type'='NoPropertyRangeViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Property has no well defined range.',
 	      subject=X,
 	      predicate=SuperP,
@@ -367,7 +402,8 @@ notFunctionalPropertyIC(X,P,_,Instance,Schema,Reason) :-
     card(X,P,_,Instance,Schema,N),
     N \= 1,
     interpolate(['Functional Property ',P,' is not functional.'],Message),
-    Reason = [error=functionalPropertyError,
+    Reason = ['rdf:type'='NotFunctionalPropertyViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      subject=X,
 	      predicate=P,
 	      message=Message].
@@ -378,7 +414,8 @@ notInverseFunctionalPropertyIC(X,P,Y,Instance,Schema,Reason) :-
     card(_,P,Y,Instance,Schema,N),
     N \= 1,
     interpolate(['Functional Property ',P,' is not functional.'],Message),
-    Reason = [error=functionalPropertyError,
+    Reason = ['rdf:type'='NotInverseFunctionalPropertyViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      subject=X,
 	      predicate=P,
 	      object=Y,
@@ -388,12 +425,13 @@ localOrphanPropertyIC(X,P,Y,Instance,Schema,Reason) :-
     xrdf(X,P,Y,Instance), \+ P='http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
     \+ property(P,Schema), 
     interpolate(['No property class associated with property: ',P,'.'],Message),
-    Reason=[error=noInstancePropertyClass,
+    Reason=['rdf:type'='NotFunctionalPropertyViolation',
+	    bestPractice=literal(type('xsd:boolean',false)),
 	    subject=X,
 	    predicate=P,
 	    object=Y,
 	    message=Message].
-
+ 
 instanceSubjectBlankNode(X,Instance,_) :- xrdf(X,_,_,Instance), rdf_is_bnode(X).
 instancePredicateBlankNode(Y,Instance,_) :- xrdf(_,Y,_,Instance), rdf_is_bnode(Y).
 instanceObjectBlankNode(Z,Instance,_) :- xrdf(_,_,Z,Instance), rdf_is_bnode(Z).
@@ -401,19 +439,22 @@ instanceObjectBlankNode(Z,Instance,_) :- xrdf(_,_,Z,Instance), rdf_is_bnode(Z).
 instanceBlankNodeIC(X,_P,_Y,Instance,Schema,Reason) :-
     instanceSubjectBlankNode(X,Instance,Schema),
     interpolate(['The subject ', X, ' is a blank node'],Message),
-    Reason=[error=instanceBlankNode,
+    Reason=['rdf:type'='InstanceBlankNodeViolation',
+	    bestPractice=literal(type('xsd:boolean',true)),
 	    message=Message,
 	    subject=X].
 instanceBlankNodeIC(_,X,_,Instance,Schema,Reason) :-
     instancePredicateBlankNode(X,Instance,Schema),
     interpolate(['The predicate ', X, ' is a blank node'],Message),
-    Reason=[error=instanceBlankNode,
+    Reason=['rdf:type'='InstanceBlankNodeViolation',
+	    bestPractice=literal(type('xsd:boolean',true)),
 	    message=Message,
 	    predicate=X].
 instanceBlankNodeIC(_,_,X,Instance,Schema,Reason) :-
     instanceObjectBlankNode(X,Instance,Schema),
     interpolate(['The object ', X, ' is a blank node'],Message),
-    Reason=[error=instanceBlankNode,
+    Reason=['rdf:type'='InstanceBlankNodeViolation',
+	    bestPractice=literal(type('xsd:boolean',true)),
 	    message=Message,
 	    object=X].		
 
@@ -434,65 +475,75 @@ daysInMonth(_,12,31).
 nbasetypeElt(literal(S),xsd:string,Reason) :-
     \+ atom(S), term_to_atom(S,A)
     ->
-    Reason = [error=nbasetypeElt,
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),	    
 	      message='Expected atom, found term',
 	      literal=A].
 nbasetypeElt(literal(lang(S,L)),xsd:string,Reason) :-
     \+ atom(S), term_to_atom(lang(S,L),A)
     ->
-    Reason = [error=nbasetypeElt,
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Expected atom in string section, found term.',
 	      literal=A].
 nbasetypeElt(literal(lang(S,L)),xsd:string,Reason) :-
     \+ atom(L), term_to_atom(lang(S,L),A)
     ->
-    Reason = [error=nbasetypeElt,
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Expected atom in language section, found term.',
 	      literal=A].
 nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
     \+ atom(S), term_to_atom(type(T,S),A)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Expected atom, found term as element.',
 	      literal=A].
 nbasetypeElt(literal(type(T,S)),xsd:string,Reason) :-
     \+ atom(T), term_to_atom(type(T,S),A)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Expected atom, found term as type.',
 	      literal=A].
 nbasetypeElt(literal(type(T1,_)),T2,Reason) :-
     \+ basetypeSubsumptionOf(T1,T2)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Could not subsume type1 with type2',
 	      type1=T1,
 	      type2=T2].
 nbasetypeElt(literal(type(_,S)),xsd:boolean,Reason) :-
     \+ member(S,['true','false','1','0']), term_to_atom(S,A)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed boolean.',
 	      literal=A,
 	      type='xsd:boolean'].
 nbasetypeElt(literal(type(_,S)),xsd:decimal,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:decimal(_),C,[]))
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed decimal.',
 	      literal=S,
 	      type='xsd:decimal'].
 nbasetypeElt(literal(type(_,S)),xsd:integer,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed integer.',
 	      literal=S,
 	      type='xsd:integer'].
 nbasetypeElt(literal(type(_,S)),xsd:double,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:double(_,_,_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed double.',
 	      literal=S,
 	      type='xsd:double'].
@@ -500,7 +551,8 @@ nbasetypeElt(literal(type(_,S)),xsd:double,Reason) :-
     atom_codes(S,C), phrase(xsdParser:double(M,_,_),C,[]),
     abs(M, N), Max is 2 ^ 53, N > Max
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed double: Mantisa is massive.',
 	      literal=S,
 	      type='xsd:double'].
@@ -508,14 +560,16 @@ nbasetypeElt(literal(type(_,S)),xsd:double,Reason) :-
     atom_codes(S,C), phrase(xsdParser:double(_,E,_),C,[]),
     (E > 970 ; E < -1075)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed double: exponent excessive.',
 	      literal=S,
 	      type='xsd:double'].
 nbasetypeElt(literal(type(_,S)),xsd:float,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:double(_,_,_),C,[]))
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed float.',
 	      literal=S,
 	      type='xsd:float'].
@@ -523,7 +577,8 @@ nbasetypeElt(literal(type(_,S)),xsd:float,Reason) :-
     atom_codes(S,C), phrase(xsdParser:double(M,_,_),C,[]),
     abs(M, N), Max is 2 ^ 24, N > Max
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed float: mantisa is massive.',
 	      literal=S,
 	      type='xsd:float'].
@@ -531,14 +586,16 @@ nbasetypeElt(literal(type(_,S)),xsd:float,Reason) :-
     atom_codes(S,C), phrase(xsdParser:double(_,E,_),C,[]),
     (E > 104 ; E < -149)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed float: exponent excessive.',
 	      literal=S,
 	      type='xsd:float'].
 nbasetypeElt(literal(type(_,S)),xsd:time,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:time(_,_,_,_,_,_),C,[]))
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:time',
 	      literal=S,
 	      type='xsd:time'].
@@ -546,21 +603,24 @@ nbasetypeElt(literal(type(_,S)),xsd:time,Reason) :-
     atom_codes(S,C), phrase(xsdParser:time(H,M,S,Z,ZH,ZM),C,[]),
     (H > 23 ; M > 59 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59 )
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:time : parameter out of range.',
 	      literal=S,
 	      type='xsd:time'].
 nbasetypeElt(literal(type(_,S)),xsd:date,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:date(_,_,_,_,_,_),C,[]))
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:date.',
 	      literal=S,
 	      type='xsd:date'].
 nbasetypeElt(literal(type(_,S)),xsd:dateTime,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:dateTime(_,_,_,_,_,_,_,_,_),C,[]))
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:dateTime.',
 	      literal=S,
 	      type='xsd:dateTime'].
@@ -571,14 +631,16 @@ nbasetypeElt(literal(type(_,S)),xsd:dateTime,Reason) :-
      ; D < 1 ; H > 23 ; M > 59
      ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59 )
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:dateTime : parameter out of range.',
 	      literal=S,
 	      type='xsd:dateTime'].
 nbasetypeElt(literal(type(_,S)),xsd:gYear,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:gYear(_,_,_,_),C,[]))
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gYear',
 	      literal=S,
 	      type='xsd:gYear'].
@@ -586,14 +648,16 @@ nbasetypeElt(literal(type(_,S)),xsd:gYear,Reason) :-
     atom_codes(S,C), phrase(xsdParser:gYear(_,Z,ZH,ZM),C,[]),
     ((\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gYear : parameters out of range',
 	      literal=S,
 	      type='xsd:gYear'].
 nbasetypeElt(literal(type(_,S)),xsd:gMonth,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:gMonth(_,_,_,_),C,[]))
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:Month',
 	      literal=S,
 	      type='xsd:gMonth'].
@@ -601,14 +665,16 @@ nbasetypeElt(literal(type(_,S)),xsd:gMonth,Reason) :-
     atom_codes(S,C), phrase(xsdParser:gMonth(M,Z,ZH,ZM),C,[]),
     (M < 12 ; M > 1 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
     -> 
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gMonth : parameters out of range',
 	      literal=S,
 	      type='xsd:gMonth'].
 nbasetypeElt(literal(type(_,S)),xsd:gDay,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:gDay(_,_,_,_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gMonth',
 	      literal=S,
 	      type='xsd:gMonth'].
@@ -616,14 +682,16 @@ nbasetypeElt(literal(type(_,S)),xsd:gDay,Reason) :-
     atom_codes(S,C), phrase(xsdParser:gDay(D,Z,ZH,ZM),C,[]),
     (D < 1 ; D > 31 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gMonth : parameters out of range',
 	      literal=S,
 	      type='xsd:gMonth'].
 nbasetypeElt(literal(type(_,S)),xsd:gYearMonth,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:gYearMonth(_,_,_,_,_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gYearMonth',
 	      literal=S,
 	      type='xsd:gYearMonth'].
@@ -631,14 +699,16 @@ nbasetypeElt(literal(type(_,S)),xsd:gYearMonth,Reason) :-
     atom_codes(S,C), phrase(xsdParser:gYearMonth(_,M,Z,ZH,ZM),C,[]),
     (M > 12 ; M < 1 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gYearMonth : parameters out of range',
 	      literal=S,
 	      type='xsd:gYearMonth'].
 nbasetypeElt(literal(type(_,S)),xsd:gMonthDay,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:gMonthDay(_,_,_,_,_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gYearMonth',
 	      literal=S,
 	      type='xsd:gMonthDay'].
@@ -646,35 +716,40 @@ nbasetypeElt(literal(type(_,S)),xsd:gMonthDay,Reason) :-
     atom_codes(S,C), phrase(xsdParser:gMonthDay(M,D,Z,ZH,ZM),C,[]),
     (M > 12 ; M < 1 ; D < 1 ; D > 31 ; (\+ member(Z,[1,-1])) ; ZH > 6 ; ZM > 59)
     ->
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:gMonthDay : parameters out of range',
 	      literal=S,
 	      type='xsd:gMonthDay'].
 nbasetypeElt(literal(type(_,S)),xsd:duration,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:duration(_,_,_,_,_,_,_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:duration',
 	      literal=S,
 	      type='xsd:duration'].
 nbasetypeElt(literal(type(_,S)),xsd:yearMonthDuration,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:yearMonthDuration(_,_,_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:yearMonthDuration',
 	      literal=S,
 	      type='xsd:yearMonthDuration'].
 nbasetypeElt(literal(type(_,S)),xsd:dayTimeDuration,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:dayTimeDuration(_,_,_,_,_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:dayTimeDuration',
 	      literal=S,
 	      type='xsd:dayTimehDuration'].
 nbasetypeElt(literal(type(_,S)),xsd:byte,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:byte',
 	      literal=S,
 	      type='xsd:byte'].
@@ -682,14 +757,16 @@ nbasetypeElt(literal(type(_,S)),xsd:byte,Reason) :-
     atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
     (I < -128 ; I > 127 )
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:byte: out of range.',
 	      literal=S,
 	      type='xsd:byte'].
 nbasetypeElt(literal(type(_,S)),xsd:short,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:short',
 	      literal=S,
 	      type='xsd:short'].
@@ -697,14 +774,16 @@ nbasetypeElt(literal(type(_,S)),xsd:short,Reason) :-
     atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
     (I < -32768 ; I > 32767 )
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:short: out of range.',
 	      literal=S,
 	      type='xsd:short'].
 nbasetypeElt(literal(type(_,S)),xsd:int,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:int',
 	      literal=S,
 	      type='xsd:int'].
@@ -712,14 +791,16 @@ nbasetypeElt(literal(type(_,S)),xsd:int,Reason) :-
     atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
     (I < -2147483648 ; I > 2147483647 )
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:int: out of range.',
 	      literal=S,
 	      type='xsd:int'].
 nbasetypeElt(literal(type(_,S)),xsd:long,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:integer(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:long',
 	      literal=S,
 	      type='xsd:long'].
@@ -727,14 +808,16 @@ nbasetypeElt(literal(type(_,S)),xsd:long,Reason) :-
     atom_codes(S,C), phrase(xsdParser:integer(I),C,[]),
     (I < -9223372036854775808 ; I > 9223372036854775807 )
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:long: out of range.',
 	      literal=S,
 	      type='xsd:long'].
 nbasetypeElt(literal(type(_,S)),xsd:unsignedByte,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:unsignedByte',
 	      literal=S,
 	      type='xsd:unsignedByte'].
@@ -742,14 +825,16 @@ nbasetypeElt(literal(type(_,S)),xsd:unsignedByte,Reason) :-
     atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
     (I < 0 ; I > 255 )
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:unsignedByte: out of range.',
 	      literal=S,
 	      type='xsd:unsignedByte'].
 nbasetypeElt(literal(type(_,S)),xsd:unsignedShort,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:unsignedShort',
 	      literal=S,
 	      type='xsd:unsignedShort'].
@@ -757,14 +842,16 @@ nbasetypeElt(literal(type(_,S)),xsd:unsignedShort,Reason) :-
     atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
     (I < 0 ; I > 65535 )
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:unsignedShort: out of range.',
 	      literal=S,
 	      type='xsd:unsignedShort'].
 nbasetypeElt(literal(type(_,S)),xsd:unsignedInt,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:unsignedInt',
 	      literal=S,
 	      type='xsd:unsignedInt'].
@@ -772,14 +859,16 @@ nbasetypeElt(literal(type(_,S)),xsd:unsignedInt,Reason) :-
     atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
     (I < 0 ; I > 4294967295 )
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:unsignedInt: out of range.',
 	      literal=S,
 	      type='xsd:unsignedInt'].
 nbasetypeElt(literal(type(_,S)),xsd:unsignedLong,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:unsignedLong',
 	      literal=S,
 	      type='xsd:unsignedLong'].
@@ -787,14 +876,16 @@ nbasetypeElt(literal(type(_,S)),xsd:unsignedLong,Reason) :-
     atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
     (I < 0 ; I > 18446744073709551615 )
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:unsignedLong: out of range.',
 	      literal=S,
 	      type='xsd:unsignedLong'].
 nbasetypeElt(literal(type(_,S)),xsd:positiveInteger,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:positiveInteger',
 	      literal=S,
 	      type='xsd:positiveInteger'].
@@ -802,105 +893,120 @@ nbasetypeElt(literal(type(_,S)),xsd:positiveInteger,Reason) :-
     atom_codes(S,C), phrase(xsdParser:positiveInteger(I),C,[]),
     I < 1 
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:positiveInteger: out of range.',
 	      literal=S,
 	      type='xsd:positiveInteger'].
 nbasetypeElt(literal(type(_,S)),xsd:nonNegativeInteger,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:positiveInteger(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:nonNegativeInteger',
 	      literal=S,
 	      type='xsd:nonNegativeInteger'].
 nbasetypeElt(literal(type(_,S)),xsd:negativeInteger,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:negativeInteger(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:negativeInteger',
 	      literal=S,
 	      type='xsd:negativeInteger'].
 nbasetypeElt(literal(type(_,S)),xsd:nonPositiveInteger,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:nonPositiveInteger(_),C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:nonPositiveInteger',
 	      literal=S,
 	      type='xsd:nonPositiveInteger'].
 nbasetypeElt(literal(type(_,S)),xsd:base64Binary,Reason) :-
     \+ (atom_codes(S,C), phrase(xsdParser:base64Binary,C,[]))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:base64Binary',
 	      literal=S,
 	      type='xsd:base64Binary'].
 nbasetypeElt(literal(type(_,S)),xsd:anyURI,Reason) :-
     \+ uri_components(S,_)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:anyUri',
 	      literal=S,
 	      type='xsd:anyURI'].
 nbasetypeElt(literal(type(_,S)),xsd:language,Reason) :-
     \+ uri_components(xsdParser:language,_)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:language',
 	      literal=S,
 	      type='xsd:language'].
 nbasetypeElt(literal(type(_,S)),xsd:normalizedString,Reason) :-
     \+ uri_components(xsdParser:normalizedString,_)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:normalizedString',
 	      literal=S,
 	      type='xsd:normalizedString'].
 nbasetypeElt(literal(type(_,S)),xsd:token,Reason) :-
     \+ uri_components(xsdParser:normalizedString,_)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:token',
 	      literal=S,
 	      type='xsd:token'].
 nbasetypeElt(literal(type(_,S)),xsd:'NMTOKEN',Reason) :-
     \+ uri_components(xsdParser:nmtoken,_)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:NMTOKEN',
 	      literal=S,
 	      type='xsd:NMTOKEN'].
 nbasetypeElt(literal(type(_,S)),xsd:'Name',Reason) :-
     \+ uri_components(xsdParser:name,_)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:Name',
 	      literal=S,
 	      type='xsd:Name'].
 nbasetypeElt(literal(type(_,S)),xsd:'NCName',Reason) :-
     \+ uri_components(xsdParser:ncname,_)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:NCName',
 	      literal=S,
 	      type='xsd:NCName'].
 nbasetypeElt(literal(type(_,S)),xsd:'NCName',Reason) :-
     \+ uri_components(xsdParser:ncname,_)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed xsd:NCName',
 	      literal=S,
 	      type='xsd:NCName'].
 nbasetypeElt(literal(T),rdf:'PlainLiteral',Reason) :-
     (lang(_,_) \= T ; \+ atom(T))
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)),
 	      message='Not a well formed rdf:PlainLiteral',
 	      literal=T,
 	      type='rdf:PlainLiteral'].
 nbasetypeElt(X,rdfs:'Literal',Reason) :-
     literal(_) \= X, term_to_atom(X,T)
     ->   
-    Reason = [error=nbasetypeElt, 
+    Reason = ['rdf:type'='NotBaseTypeElementViolation',
+	      bestPractice=literal(type('xsd:boolean',false)), 
 	      message='Not a well formed rdfs:Literal',
 	      literal=T,
 	      type='rdfs:Literal'].

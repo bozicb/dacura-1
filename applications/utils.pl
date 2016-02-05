@@ -1,7 +1,10 @@
 :- module(utils,[
 	         getKey/4, count/3, path_end/2, render/2, convert_quads/2, json_to_literal/2,
 		 interpolate/2, uniqueSolns/3,
-		 fixup_literals/2, jsonify/2
+		 fixup_literals/2, jsonify/2,
+		 % Meta-programming utils
+		 converse/4,
+		 lambda/3, lambda/5, lambda/7
 		]).
 
 % convenience functions
@@ -53,6 +56,8 @@ convert_quads([[X1,Y1,Z1,G]|T1], [[X2,Y2,Z2,G]|T2]) :-
 %    write(Log,']\n'),
     convert_quads(T1,T2).
 
+fixup_literals(H,J) :- jsonify(H,J).
+/* DDD Test using jsonify....
 fixup_literals([],[]).
 fixup_literals(json(L1),json(L2)) :-
     fixup_literals(L1,L2).
@@ -62,6 +67,7 @@ fixup_literals([json(H1)|T1], [json(H2)|T2]) :-
 fixup_literals([X=Y1|T1],[X=Y2|T2]) :- 
     json_to_literal(Y2,Y1),
     fixup_literals(T1,T2).
+*/
 
 %errorProcedure :-
 %    throw(basalt("Foo fluppers!")).
@@ -90,10 +96,13 @@ uniqueSolns(Template,Predicate,Collection) :-
 
 
 % convert lists into json
+jsonify(literal(type(Type,Data)),json([type=Type,data=Data])) :- !.
+jsonify(literal(type(Type,Data)),json([data=Data,type=Type])) :- !.
+jsonify(literal(lang(Lang,Data)),json([lang=Lang,data=Data])) :- !.
+jsonify(literal(lang(Lang,Data)),json([data=Data,lang=Lang])) :- !.
 jsonify(A,A) :-
-    atom(A) ; number(A).
+    (atom(A) ; number(A)), !.
 jsonify(A=B,A=Bp) :-
-%    write(B),
     jsonify(B,Bp).
 jsonify(L,Lp) :-
     is_list(L),
@@ -103,3 +112,21 @@ jsonify(L,json(Lp)) :-
     is_list(L),
     \+ \+ member(_=_,L), % is a valid object
     maplist(jsonify,L,Lp).
+
+%%% Meta-programming
+
+% Flip order of args
+converse(F, X, Y, FYX) :-
+    call(F, Y, X, FYX).
+
+lambda( A1, GoalTemplate, X1 ) :-
+  copy_term( A1-GoalTemplate, X1-Goal ),
+  call( Goal ).
+
+lambda( A1, A2, GoalTemplate, X1, X2 ) :-
+  copy_term( A1-A2-GoalTemplate, X1-X2-Goal ),
+  call( Goal ).
+
+lambda( A1, A2, A3, GoalTemplate, X1, X2, X3) :-
+  copy_term( A1-A2-A3-GoalTemplate, X1-X2-X3-Goal ),
+  call( Goal ).
